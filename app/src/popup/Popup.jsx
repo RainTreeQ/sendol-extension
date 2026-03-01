@@ -172,8 +172,8 @@ export default function Popup() {
     <div className="flex min-h-[520px] w-[380px] flex-col overflow-x-hidden bg-gray-50 text-gray-900 dark:bg-zinc-900 dark:text-gray-100 font-sans">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200/50 bg-white/80 px-5 py-4 backdrop-blur-md dark:border-zinc-800/50 dark:bg-zinc-900/80">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-[10px] font-bold tracking-wider text-white shadow-sm dark:bg-white dark:text-zinc-900">
-            AI
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white shadow-sm dark:bg-zinc-300 dark:text-zinc-900">
+            <Send className="h-3.5 w-3.5" strokeWidth={2.4} />
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">Broadcast</span>
         </div>
@@ -291,11 +291,11 @@ export default function Popup() {
           <div className="flex items-center justify-between px-3 pb-3">
             <div className="flex items-center gap-1.5">
               <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
-                <Switch checked={autoSend} onCheckedChange={(v) => { setAutoSend(v); chrome.storage?.local?.set({ autoSend: v }); }} className="data-[state=checked]:bg-purple-500" />
+                <Switch checked={autoSend} onCheckedChange={(v) => { setAutoSend(v); chrome.storage?.local?.set({ autoSend: v }); }} />
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Auto Send</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
-                <Switch checked={newChat} onCheckedChange={(v) => { setNewChat(v); chrome.storage?.local?.set({ newChat: v }); }} className="data-[state=checked]:bg-purple-500" />
+                <Switch checked={newChat} onCheckedChange={(v) => { setNewChat(v); chrome.storage?.local?.set({ newChat: v }); }} />
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">New Chat</span>
               </label>
             </div>
