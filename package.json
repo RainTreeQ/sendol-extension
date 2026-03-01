@@ -3,10 +3,13 @@
   "version": "1.5.0",
   "private": true,
   "scripts": {
+    "build": "npm run build --prefix app",
+    "build:icons": "node scripts/build-icons.mjs",
     "test:input": "node scripts/test-input-support.mjs",
     "test:popup": "node scripts/test-popup-ui.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.49.0"
+    "playwright": "^1.49.0",
+    "sharp": "^0.33.5"
   }
 }

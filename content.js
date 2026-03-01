@@ -182,6 +182,20 @@ if (!window.__aiBroadcastLoaded) {
     }
 
     // ── Gemini-specific injection: no clipboard/paste events ────────────────
+    function notifyGeminiFramework(el, text) {
+      el.dispatchEvent(new InputEvent('input', {
+        bubbles: true,
+        inputType: 'insertText',
+        data: text
+      }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      const richTextarea = el.closest('rich-textarea');
+      if (richTextarea) {
+        richTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+        richTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
     async function setGeminiInput(el, text, options) {
       const { logger } = options;
 
@@ -194,7 +208,9 @@ if (!window.__aiBroadcastLoaded) {
         quill.setText('');
         quill.insertText(0, text, 'user');
         quill.setSelection(text.length, 0);
-        if (await verifyContent(el, text, 160, 20)) {
+        notifyGeminiFramework(el, text);
+        await sleep(30);
+        if (await verifyContent(el, text, 200, 25)) {
           return { strategy: 'gemini-quill', fallbackUsed: false };
         }
       }
@@ -203,11 +219,7 @@ if (!window.__aiBroadcastLoaded) {
       document.execCommand('delete', false, null);
       document.execCommand('insertText', false, text);
       if (await verifyContent(el, text)) {
-        el.dispatchEvent(new InputEvent('input', {
-          bubbles: true,
-          inputType: 'insertText',
-          data: text
-        }));
+        notifyGeminiFramework(el, text);
         return { strategy: 'gemini-insertText', fallbackUsed: Boolean(quill) };
       }
 
@@ -215,7 +227,7 @@ if (!window.__aiBroadcastLoaded) {
       const p = document.createElement('p');
       p.textContent = text;
       el.appendChild(p);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      notifyGeminiFramework(el, text);
       if (await verifyContent(el, text)) {
         return { strategy: 'gemini-direct-dom', fallbackUsed: true };
       }
@@ -306,23 +318,34 @@ if (!window.__aiBroadcastLoaded) {
         ),
         inject: (el, text, options) => setGeminiInput(el, text, options),
         async send(el, options) {
+          await sleep(60);
           const btn = await waitFor(() => {
             for (const selector of [
               'button[aria-label="Send message"]',
+              'button[aria-label="Send"]',
               'button.send-button',
-              'button[jsname="Qx7uuf"]',
               'button[data-test-id="send-button"]',
-              'button[mattooltip="Send message"]'
+              'button[mattooltip="Send message"]',
+              'button[mattooltip="Send"]',
+              'button[jsname="Qx7uuf"]'
             ]) {
               const found = document.querySelector(selector);
               if (found && !found.disabled) return found;
             }
+            const container = el?.closest('rich-textarea')?.parentElement?.parentElement
+                           || el?.closest('.input-area-container')
+                           || el?.closest('[role="complementary"]')?.parentElement;
+            if (container) {
+              for (const b of container.querySelectorAll('button:not([disabled])')) {
+                const hint = (b.getAttribute('aria-label') || b.getAttribute('mattooltip') || '').toLowerCase();
+                if (hint.includes('send')) return b;
+              }
+            }
             return null;
-          }, 4000, 40);
+          }, 5000, 50);
           if (btn) {
             btn.click();
           } else {
-            // Keep Gemini safety behavior: no Enter fallback.
             options.logger.debug('gemini-send-button-not-found', { hasInput: Boolean(el) });
           }
         }

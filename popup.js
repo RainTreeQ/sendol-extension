@@ -1,5 +1,22 @@
 // AI Broadcast - Popup Script
 
+// When extension is uninstalled/disabled while popup is open, close popup to avoid orphaned blank frame
+function isExtensionContextValid() {
+  try {
+    return typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
+  } catch (_) {
+    return false;
+  }
+}
+const extensionHeartbeat = setInterval(() => {
+  if (!isExtensionContextValid()) {
+    clearInterval(extensionHeartbeat);
+    try {
+      window.close();
+    } catch (_) {}
+  }
+}, 500);
+
 let aiTabs = [];
 let selectedTabIds = new Set();
 let debugLogs = false;

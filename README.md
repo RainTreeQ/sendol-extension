@@ -17,6 +17,12 @@
 - Grok (xAI)
 - DeepSeek
 
+## 📂 开发时注意：哪些修改会生效
+
+- **弹窗界面**（Logo、样式、交互）：改 `app/src/popup/Popup.jsx` 等，改完在 `app/` 下执行 `npm run build`，再到扩展管理页点「重新加载」。
+- **后台 / 注入脚本、manifest、图标**：改根目录的 `background.js`、`content.js`、`manifest.json`、`icons/` 即可，保存后重载扩展即生效。  
+详见 [app/docs/L3-EXTENSION-INTEGRATION.md](app/docs/L3-EXTENSION-INTEGRATION.md)。
+
 ## 🛠 手动安装 (Installation)
 
 由于此插件暂未上架 Chrome Web Store，请通过**开发者模式**手动加载：

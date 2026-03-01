@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#0a0a0f"/>
-  <rect x="10" y="10" width="108" height="108" rx="20" fill="url(#g)"/>
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6c63ff"/>
-      <stop offset="1" stop-color="#ff6b9d"/>
-    </linearGradient>
-  </defs>
-  <text x="64" y="85" font-size="72" text-anchor="middle" fill="white">⚡</text>
+  <style>
+    .logo-bg { fill: #000000; }
+    .logo-fg { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .logo-bg { fill: #d4d4d8; }
+      .logo-fg { fill: #111111; }
+    }
+  </style>
+  <rect class="logo-bg" width="128" height="128" rx="28" />
+  <path class="logo-fg" d="M106.9 22.6L21.6 54.3c-2.8 1-2.8 5 .1 6L49 72.1l11.9 27.3c1.1 2.5 4.6 2.4 5.5-.2l40.7-73.4c1.2-2.2-.3-4.3-2.2-3.2zm-9.1 10.6l-34 61.2-8.5-19.4-19.4-8.4 61.9-23.3z"/>
 </svg>

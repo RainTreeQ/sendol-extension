@@ -20,6 +20,7 @@
       --accent: #000000;
       --accent-hover: #333333;
       --accent-text: #ffffff;
+      --toggle-on: #404040;
       
       --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
       --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
@@ -52,6 +53,7 @@
         --accent: #ffffff;
         --accent-hover: #e0e0e0;
         --accent-text: #000000;
+        --toggle-on: #6b6b6b;
         
         --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
         --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
@@ -111,6 +113,10 @@
       justify-content: center;
       font-size: 14px;
       font-weight: bold;
+    }
+    .logo-icon svg {
+      width: 14px;
+      height: 14px;
     }
 
     .logo-text {
@@ -358,7 +364,7 @@
     .switch input:checked:active + .slider:before {
       transform: translateX(12px);
     }
-    .switch input:checked + .slider { background-color: var(--accent); }
+    .switch input:checked + .slider { background-color: var(--toggle-on); }
     .switch input:checked + .slider:before { transform: translateX(16px); }
 
     .send-btn {
@@ -435,7 +441,13 @@
 
 <div class="header">
   <div class="logo-area">
-    <div class="logo-icon">AI</div>
+    <div class="logo-icon" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 12 L12 2 A10 10 0 0 1 20.66 17 Z"/>
+        <path d="M12 12 L20.66 17 A10 10 0 0 1 3.34 17 Z"/>
+        <path d="M12 12 L3.34 17 A10 10 0 0 1 12 2 Z"/>
+      </svg>
+    </div>
     <span class="logo-text">Broadcast</span>
   </div>
   <div class="header-actions">

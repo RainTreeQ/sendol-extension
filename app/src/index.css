@@ -20,6 +20,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-switch-on: var(--switch-on);
   --radius-lg: var(--radius);
   --font-sans: var(--font-sans);
   --font-serif: var(--font-serif);
@@ -48,6 +49,7 @@
     --border: oklch(0.8447 0.0226 300.1421);
     --input: oklch(0.9329 0.0124 301.2783);
     --ring: oklch(0.6104 0.0767 299.7335);
+    --switch-on: oklch(0.38 0.02 260);
     --radius: 0.5rem;
     --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
     --font-serif: "Lora", Georgia, serif;
@@ -75,6 +77,7 @@
     --border: oklch(0.3063 0.0359 293.3367);
     --input: oklch(0.2847 0.0346 291.2726);
     --ring: oklch(0.7058 0.0777 302.0489);
+    --switch-on: oklch(0.55 0.02 260);
   }
 
   body {

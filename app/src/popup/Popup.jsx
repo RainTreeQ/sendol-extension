@@ -4,6 +4,25 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { RefreshCw, Send, Check } from 'lucide-react'
 
+/** Logo: 圆形竖着分三份 — 圆 + 两条竖线 */
+function LogoIcon({ className }) {
+  const cx = 12
+  const cy = 12
+  const r = 10
+  const xLeft = cx - r / 3
+  const xRight = cx + r / 3
+  const dy = Math.sqrt(r * r - (r / 3) ** 2)
+  const yTop = cy - dy
+  const yBottom = cy + dy
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className={className}>
+      <circle cx={cx} cy={cy} r={r} fill="currentColor" stroke="none" />
+      <line x1={xLeft} y1={yTop} x2={xLeft} y2={yBottom} stroke="var(--logo-divider, #000)" />
+      <line x1={xRight} y1={yTop} x2={xRight} y2={yBottom} stroke="var(--logo-divider, #000)" />
+    </svg>
+  )
+}
+
 function createRequestId() {
   return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
@@ -44,6 +63,26 @@ export default function Popup() {
       if (data.autoSend) setAutoSend(true)
       if (data.newChat) setNewChat(true)
     })
+  }, [])
+
+  // When extension is uninstalled/disabled while popup is open, close popup to avoid orphaned blank frame
+  useEffect(() => {
+    function isExtensionContextValid() {
+      try {
+        return typeof chrome !== 'undefined' && chrome.runtime?.id
+      } catch (_) {
+        return false
+      }
+    }
+    const t = setInterval(() => {
+      if (!isExtensionContextValid()) {
+        clearInterval(t)
+        try {
+          window.close()
+        } catch (_) {}
+      }
+    }, 500)
+    return () => clearInterval(t)
   }, [])
 
   const loadTabs = useCallback(async () => {
@@ -172,8 +211,8 @@ export default function Popup() {
     <div className="flex min-h-[520px] w-[380px] flex-col overflow-x-hidden bg-gray-50 text-gray-900 dark:bg-zinc-900 dark:text-gray-100 font-sans">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200/50 bg-white/80 px-5 py-4 backdrop-blur-md dark:border-zinc-800/50 dark:bg-zinc-900/80">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black text-white shadow-sm dark:bg-zinc-300 dark:text-zinc-900">
-            <Send className="h-3.5 w-3.5" strokeWidth={2.4} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] dark:bg-zinc-300 dark:text-zinc-900 [--logo-divider:#000] dark:[--logo-divider:theme(colors.zinc.300)]">
+            <LogoIcon className="h-4 w-4" />
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">Broadcast</span>
         </div>
@@ -236,7 +275,7 @@ export default function Popup() {
                 >
                   <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
                     selected 
-                      ? 'bg-gray-900 text-white dark:bg-white dark:text-zinc-900' 
+                      ? 'bg-black text-white dark:bg-white dark:text-black' 
                       : 'border border-gray-300 group-hover:border-gray-400 dark:border-zinc-600 dark:group-hover:border-zinc-500'
                   }`}>
                     {selected && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
@@ -304,9 +343,9 @@ export default function Popup() {
               disabled={sendDisabled}
               onClick={handleSend}
               title={hasSelection && hasText ? `Send to ${selectedTabIds.length} AI(s)` : 'Select tabs and enter message'}
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
                 !sendDisabled 
-                  ? 'bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-[0_2px_10px_rgba(168,85,247,0.3)] hover:scale-105 hover:shadow-[0_4px_16px_rgba(168,85,247,0.5)] active:scale-95'
+                  ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600'
               }`}
             >

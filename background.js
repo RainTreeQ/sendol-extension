@@ -116,6 +116,16 @@ const PLATFORM_NAMES = {
   'chat.mistral.ai': 'Mistral'
 };
 
+const GENERIC_TITLE_PATTERNS = {
+  ChatGPT: [/^chatgpt$/i, /^new chat$/i],
+  Claude: [/^claude$/i, /^new chat$/i],
+  Gemini: [/^google gemini$/i, /^gemini$/i, /^new\s*chat$/i, /^gemini\s*[-–—|]/i, /[-–—|]\s*gemini$/i, /^gemini\s*[-–—|].*gemini$/i],
+  Grok: [/^grok$/i, /^new chat$/i],
+  DeepSeek: [/^deepseek$/i, /^new chat$/i],
+  Copilot: [/^microsoft copilot$/i, /^copilot$/i],
+  Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i]
+};
+
 // New chat URLs per platform
 const NEW_CHAT_URLS = {
   'ChatGPT':  'https://chatgpt.com/',
@@ -135,6 +145,115 @@ function getPlatformName(url) {
     }
   } catch(e) {}
   return null;
+}
+
+function normalizeTitle(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isGenericTitle(platformName, title) {
+  const normalized = normalizeTitle(title);
+  if (!normalized) return true;
+  const patterns = GENERIC_TITLE_PATTERNS[platformName] || [];
+  return patterns.some((pattern) => pattern.test(normalized));
+}
+
+async function probeConversationTitle(tabId, platformName) {
+  try {
+    const execution = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (platform) => {
+        const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+        const pick = (selectors) => {
+          for (const selector of selectors) {
+            const node = document.querySelector(selector);
+            const text = normalize(node?.textContent || node?.innerText);
+            if (text) return text;
+          }
+          return '';
+        };
+        const pickAll = (selectors) => {
+          const out = [];
+          for (const selector of selectors) {
+            try {
+              const nodes = document.querySelectorAll(selector);
+              for (const node of nodes) {
+                const text = normalize(node?.textContent || node?.innerText);
+                if (text && text.length <= 120 && text.length > 0) out.push(text);
+              }
+            } catch (e) {}
+          }
+          return out;
+        };
+        const stripPatterns = {
+          Gemini: [/\s*[-–—|]\s*(?:google\s*)?gemini\s*$/i, /^(?:google\s*)?gemini\s*[-–—|]\s*/i, /\s*[-–—|]\s*google\s*$/i],
+          ChatGPT: [/\s*[-–—|]\s*chatgpt\s*$/i, /^chatgpt\s*[-–—|]\s*/i],
+          Claude: [/\s*[-–—|]\s*claude\s*$/i, /^claude\s*[-–—|]\s*/i],
+          Grok: [/\s*[-–—|]\s*grok\s*$/i, /^grok\s*[-–—|]\s*/i],
+          DeepSeek: [/\s*[-–—|]\s*deepseek\s*$/i, /^deepseek\s*[-–—|]\s*/i]
+        };
+        const genericGemini = /^(?:google\s*)?gemini$|^new\s*chat$/i;
+
+        if (platform === 'Gemini') {
+          const byTitle = normalize(document.title);
+          let stripped = byTitle;
+          for (const re of (stripPatterns.Gemini || [])) stripped = stripped.replace(re, '').trim();
+          if (stripped && !genericGemini.test(stripped) && stripped.length <= 120) return stripped;
+
+          const domSelectors = [
+            '[aria-current="page"]',
+            '[aria-selected="true"]',
+            'aside [aria-current="page"]',
+            'aside [aria-selected="true"]',
+            '[role="navigation"] [aria-current="page"]',
+            '[role="navigation"] [aria-selected="true"]',
+            'nav [aria-current="page"]',
+            'nav [aria-selected="true"]',
+            '[data-test-id="conversation-title"]',
+            '[data-test-id="chat-history-item-active"]',
+            '.mdc-list-item--activated',
+            '.mdc-list-item--selected',
+            'a[aria-current="page"]',
+            'button[aria-current="page"]'
+          ];
+          const byDom = pick(domSelectors);
+          if (byDom && !genericGemini.test(byDom)) return byDom;
+
+          const candidates = pickAll(['[aria-current="page"]', '[aria-selected="true"]']);
+          for (const c of candidates) {
+            if (c && !genericGemini.test(c) && c.length <= 120) return c;
+          }
+
+          return stripped && stripped.length <= 120 ? stripped : '';
+        }
+
+        const selectorMap = {
+          ChatGPT: ['nav a[aria-current="page"]', 'nav [data-active="true"]', 'main h1'],
+          Claude: ['nav a[aria-current="page"]', 'main h1'],
+          Grok: ['nav a[aria-current="page"]', 'main h1'],
+          DeepSeek: ['nav a[aria-current="page"]', 'main h1'],
+          Copilot: ['nav a[aria-current="page"]', 'main h1'],
+          Mistral: ['nav a[aria-current="page"]', 'main h1']
+        };
+        const platformSelectors = selectorMap[platform] || ['main h1', 'header h1'];
+        const byDom = pick(platformSelectors);
+        if (byDom && byDom.length <= 120) return byDom;
+
+        const byTitle = normalize(document.title);
+        const patterns = stripPatterns[platform] || [];
+        let stripped = byTitle;
+        for (const re of patterns) stripped = stripped.replace(re, '').trim();
+        if (stripped && stripped !== byTitle && stripped.length <= 120) return stripped;
+
+        return byTitle && byTitle.length <= 120 ? byTitle : '';
+      },
+      args: [platformName]
+    });
+    const candidate = normalizeTitle(execution?.[0]?.result || '');
+    return candidate;
+  } catch (err) {
+    return '';
+  }
 }
 
 async function getAITabs() {
@@ -166,7 +285,19 @@ async function getAITabs() {
     }
   }
 
-  return [...seenPlatforms.values()];
+  const tabs = [...seenPlatforms.values()];
+  const resolved = await Promise.all(
+    tabs.map(async (tab) => {
+      const shouldProbe = isGenericTitle(tab.platformName, tab.title) || tab.platformName === 'Gemini';
+      if (!shouldProbe) return tab;
+      const domTitle = await probeConversationTitle(tab.id, tab.platformName);
+      if (domTitle && !isGenericTitle(tab.platformName, domTitle)) {
+        return { ...tab, title: domTitle };
+      }
+      return tab;
+    })
+  );
+  return resolved;
 }
 
 // Wait for a tab to finish loading
