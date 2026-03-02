@@ -1,15 +1,15 @@
 {
   "extName": {
-    "message": "广发"
+    "message": "SendAll"
   },
   "extDescription": {
     "message": "Type once, broadcast to all split-screen AI agents (ChatGPT, Claude, Gemini, etc.)"
   },
   "actionTitle": {
-    "message": "广发"
+    "message": "SendAll"
   },
   "popup_title": {
-    "message": "广发"
+    "message": "SendAll"
   },
   "refresh": {
     "message": "Refresh"

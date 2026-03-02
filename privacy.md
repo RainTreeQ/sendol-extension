@@ -1,8 +1,8 @@
 # Privacy Policy
 
-**广发**
+**SendAll**
 
-This Privacy Policy describes how your personal information is handled in the 广发 extension for Chrome and Edge.
+This Privacy Policy describes how your personal information is handled in the SendAll extension for Chrome and Edge.
 
 ## Data Collection
 We do **not** collect, use, save, or have access to any of your personal data recorded in the extension. 

@@ -1,17 +1,17 @@
-# 广发
+# SendAll
 
 **Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, and more.
 
 **一键将同一条消息同步广播到所有 AI 会话窗口。** 专为重度 AI 用户与效率极客设计的浏览器扩展。
 
-<!-- 使用固定宽度展示，避免 GitHub 前端放大导致糊；图已预置为 1024px 适合 Retina -->
-<img src="assets/hero-earth.png" alt="广发 — 多屏同步" width="800" />
+<!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
+<img src="assets/hero-earth.png" alt="SendAll — Multi-screen Sync" width="800" />
 
 <details>
 <summary>产品截图 / Product Screenshot</summary>
 
-<!-- 固定宽度展示，减轻 GitHub 压缩导致的模糊 -->
-<img src="assets/screenshot.png" alt="Broadcast 弹窗 — ChatGPT / Claude / Gemini 多端同步" width="800" />
+<!-- Keep screenshot width fixed to reduce GitHub compression blur -->
+<img src="assets/screenshot.png" alt="SendAll popup — ChatGPT / Claude / Gemini multi-tab sync" width="800" />
 </details>
 
 ---
@@ -56,7 +56,7 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 | Step | English | 中文 |
 |------|--------|------|
 | 1 | Open the AI sites you need (e.g. ChatGPT, Claude, Gemini) in separate tabs. | 在浏览器中打开需要使用的 AI 平台页面。 |
-| 2 | Click the **广发** icon in the toolbar. | 点击浏览器右上角的 广发 图标。 |
+| 2 | Click the **SendAll** icon in the toolbar. | 点击浏览器右上角的 广发 图标。 |
 | 3 | The extension scans and lists all detected AI tabs. | 插件会自动扫描并列出当前支持的 AI 窗口。 |
 | 4 | Type your message in the input box. | 在输入框内输入内容。 |
 | 5 | (Optional) Enable **Auto Send** and/or **New Chat**. | （可选）勾选「自动发送」「新对话」。 |

@@ -1,6 +1,6 @@
 const FALLBACK_MESSAGES = {
   en: {
-    popup_title: '广发',
+    popup_title: 'SendAll',
     refresh: 'Refresh',
     active_sessions: 'Active Sessions',
     select_all: 'Select All',

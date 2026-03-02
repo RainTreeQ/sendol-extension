@@ -72,7 +72,7 @@ async function main() {
   await page.goto(`${base}/popup.html`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
 
-  const header = page.locator('text=广发').first();
+  const header = page.getByText(/SendAll|广发/).first();
   await header.waitFor({ state: 'visible', timeout: 5000 });
 
   const textarea = page.getByPlaceholder(/Message AI Agents/i);
