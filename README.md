@@ -7,12 +7,8 @@
 <!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
 <img src="assets/hero-earth.png" alt="SendAll — Multi-screen Sync" width="800" />
 
-<details>
-<summary>产品截图 / Product Screenshot</summary>
-
 <!-- Keep screenshot width fixed to reduce GitHub compression blur -->
 <img src="assets/screenshot.png" alt="SendAll popup — ChatGPT / Claude / Gemini multi-tab sync" width="800" />
-</details>
 
 ---
 
