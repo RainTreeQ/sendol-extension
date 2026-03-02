@@ -119,6 +119,17 @@ const Button = React.forwardRef(({
     ...style,
   } : style
 
+  // Slot (asChild) 只接受单一子元素，不能包裹 leftIcon/children/rightIcon 多个节点
+  const slotContent = asChild ? (
+    children
+  ) : (
+    <>
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : leftIcon}
+      {children}
+      {!isLoading && rightIcon}
+    </>
+  )
+
   return (
     <Comp
       className={cn(buttonVariants({ variant, size, className }))}
@@ -129,9 +140,7 @@ const Button = React.forwardRef(({
       onMouseLeave={(e) => { setIsHovered(false); props.onMouseLeave?.(e) }}
       {...props}
     >
-      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : leftIcon}
-      {children}
-      {!isLoading && rightIcon}
+      {slotContent}
     </Comp>
   )
 })
