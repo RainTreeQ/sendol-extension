@@ -1,0 +1,110 @@
+{
+  "extName": {
+    "message": "AI Broadcast — Multi-screen Sync"
+  },
+  "extDescription": {
+    "message": "Type once, broadcast to all split-screen AI agents (ChatGPT, Claude, Gemini, etc.)"
+  },
+  "actionTitle": {
+    "message": "AI Broadcast"
+  },
+  "popup_title": {
+    "message": "Broadcast"
+  },
+  "refresh": {
+    "message": "Refresh"
+  },
+  "active_sessions": {
+    "message": "Active Sessions"
+  },
+  "select_all": {
+    "message": "Select All"
+  },
+  "deselect_all": {
+    "message": "Deselect All"
+  },
+  "scanning_sessions": {
+    "message": "Scanning sessions..."
+  },
+  "no_ai_tabs_detected": {
+    "message": "No AI tabs detected."
+  },
+  "open_ai_tabs_hint": {
+    "message": "Open ChatGPT, Claude, Gemini, etc."
+  },
+  "message_placeholder": {
+    "message": "Message AI Agents... (Ctrl+Enter to send)"
+  },
+  "auto_send": {
+    "message": "Auto Send"
+  },
+  "new_chat": {
+    "message": "New Chat"
+  },
+  "send_to_n": {
+    "message": "Send to $COUNT$ AI(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "select_tabs_and_enter_message": {
+    "message": "Select tabs and enter message"
+  },
+  "broadcasting_to_n": {
+    "message": "Broadcasting to $COUNT$ AI(s)...",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_sent": {
+    "message": "$NAME$ — Sent",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_drafted": {
+    "message": "$NAME$ — Drafted",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_failed": {
+    "message": "$NAME$ — Failed: $ERROR$",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      },
+      "error": {
+        "content": "$2"
+      }
+    }
+  },
+  "status_failed_simple": {
+    "message": "Failed: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "unknown": {
+    "message": "Unknown"
+  },
+  "tab_n": {
+    "message": "Tab $ID$",
+    "placeholders": {
+      "id": {
+        "content": "$1"
+      }
+    }
+  }
+}
+

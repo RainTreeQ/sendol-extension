@@ -1,0 +1,110 @@
+{
+  "extName": {
+    "message": "AI Broadcast — 多屏同步"
+  },
+  "extDescription": {
+    "message": "一次输入，同步发送到所有分屏 AI Agent（ChatGPT、Claude、Gemini 等）"
+  },
+  "actionTitle": {
+    "message": "AI Broadcast"
+  },
+  "popup_title": {
+    "message": "广播"
+  },
+  "refresh": {
+    "message": "刷新"
+  },
+  "active_sessions": {
+    "message": "活跃会话"
+  },
+  "select_all": {
+    "message": "全选"
+  },
+  "deselect_all": {
+    "message": "取消全选"
+  },
+  "scanning_sessions": {
+    "message": "正在扫描会话…"
+  },
+  "no_ai_tabs_detected": {
+    "message": "未检测到 AI 标签页。"
+  },
+  "open_ai_tabs_hint": {
+    "message": "请先打开 ChatGPT、Claude、Gemini 等页面。"
+  },
+  "message_placeholder": {
+    "message": "输入要广播的消息…（Ctrl+Enter 发送）"
+  },
+  "auto_send": {
+    "message": "自动发送"
+  },
+  "new_chat": {
+    "message": "新对话"
+  },
+  "send_to_n": {
+    "message": "发送给 $COUNT$ 个 AI",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "select_tabs_and_enter_message": {
+    "message": "请选择标签页并输入消息"
+  },
+  "broadcasting_to_n": {
+    "message": "正在广播到 $COUNT$ 个 AI…",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_sent": {
+    "message": "$NAME$ — 已发送",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_drafted": {
+    "message": "$NAME$ — 已填入草稿",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "status_failed": {
+    "message": "$NAME$ — 失败：$ERROR$",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      },
+      "error": {
+        "content": "$2"
+      }
+    }
+  },
+  "status_failed_simple": {
+    "message": "失败：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "unknown": {
+    "message": "未知"
+  },
+  "tab_n": {
+    "message": "标签页 $ID$",
+    "placeholders": {
+      "id": {
+        "content": "$1"
+      }
+    }
+  }
+}
+

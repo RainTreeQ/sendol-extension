@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { RefreshCw, Send, Check } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check } from 'lucide-react'
+import { t } from '@/lib/i18n'
 
 /** Logo: 圆形竖着分三份 — 圆 + 两条竖线 */
 function LogoIcon({ className }) {
@@ -54,7 +55,8 @@ export default function Popup() {
   const hasSelection = selectedTabIds.length > 0
   const hasText = messageText.trim().length > 0
   const sendDisabled = !(hasSelection && hasText) || sending
-  const selectAllLabel = aiTabs.length > 0 && selectedTabIds.length === aiTabs.length ? 'Deselect All' : 'Select All'
+  const selectAllLabel =
+    aiTabs.length > 0 && selectedTabIds.length === aiTabs.length ? t('deselect_all') : t('select_all')
 
   // Load saved preferences
   useEffect(() => {
@@ -146,7 +148,7 @@ export default function Popup() {
     const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
     const debug = Boolean(runtimeFlags?.debugLogs)
 
-    addStatus(`Broadcasting to ${tabIds.length} AI(s)...`, 'pending')
+    addStatus(t('broadcasting_to_n', [String(tabIds.length)]), 'pending')
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -173,13 +175,13 @@ export default function Popup() {
 
       results.forEach((result) => {
         const tabInfo = aiTabs.find((t) => t.id === result.tabId)
-        const name = tabInfo ? tabInfo.platformName : `Tab ${result.tabId}`
+        const name = tabInfo ? tabInfo.platformName : t('tab_n', [String(result.tabId)])
         if (result.success) {
           successCount++
-          const msg = autoSend ? `${name} — Sent` : `${name} — Drafted`
+          const msg = autoSend ? t('status_sent', [name]) : t('status_drafted', [name])
           addStatus(msg, 'success')
         } else {
-          addStatus(`${name} — Failed: ${result.error || 'Unknown'}`, 'error')
+          addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
         }
       })
 
@@ -195,7 +197,7 @@ export default function Popup() {
       console.log(`[AIB][popup][${summary.requestId}] summary`, summary)
     } catch (err) {
       clearStatus()
-      addStatus(`Failed: ${err.message}`, 'error')
+      addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
     } finally {
       setSending(false)
     }
@@ -218,13 +220,13 @@ export default function Popup() {
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] dark:bg-zinc-300 dark:text-zinc-900 [--logo-divider:#000] dark:[--logo-divider:theme(colors.zinc.300)]">
             <LogoIcon className="h-4 w-4" />
           </div>
-          <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">Broadcast</span>
+          <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">{t('popup_title')}</span>
         </div>
         <button
           type="button"
           onClick={handleRefresh}
-          title="Refresh"
-          aria-label="Refresh"
+          title={t('refresh')}
+          aria-label={t('refresh')}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100"
         >
           <RefreshCw className={`h-4 w-4 ${refreshSpinning ? 'animate-spin' : ''}`} />
@@ -233,7 +235,7 @@ export default function Popup() {
 
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-zinc-500">
-          Active Sessions
+          {t('active_sessions')}
         </span>
         <button
           type="button"
@@ -251,12 +253,12 @@ export default function Popup() {
               className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent dark:border-zinc-500 dark:border-t-transparent"
               aria-hidden
             />
-            Scanning sessions...
+            {t('scanning_sessions')}
           </div>
         ) : aiTabs.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl px-4 py-8 text-center text-sm text-gray-400 dark:text-zinc-500">
-            <span>No AI tabs detected.</span>
-            <span className="mt-1 text-xs opacity-70">Open ChatGPT, Claude, Gemini, etc.</span>
+            <span>{t('no_ai_tabs_detected')}</span>
+            <span className="mt-1 text-xs opacity-70">{t('open_ai_tabs_hint')}</span>
           </div>
         ) : (
           <ul className="space-y-1.5">
@@ -325,7 +327,7 @@ export default function Popup() {
           <textarea
             ref={messageInputRef}
             className="min-h-[72px] w-full max-h-[160px] resize-none bg-transparent px-4 pt-3.5 text-[13px] leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-zinc-500"
-            placeholder="Message AI Agents... (Ctrl+Enter to send)"
+            placeholder={t('message_placeholder')}
             rows={3}
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
@@ -335,18 +337,22 @@ export default function Popup() {
             <div className="flex items-center gap-1.5">
               <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
                 <Switch checked={autoSend} onCheckedChange={(v) => { setAutoSend(v); chrome.storage?.local?.set({ autoSend: v }); }} />
-                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Auto Send</span>
+                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('auto_send')}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2 rounded-full px-2.5 py-1.5 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-700/50">
                 <Switch checked={newChat} onCheckedChange={(v) => { setNewChat(v); chrome.storage?.local?.set({ newChat: v }); }} />
-                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">New Chat</span>
+                <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t('new_chat')}</span>
               </label>
             </div>
             <button
               type="button"
               disabled={sendDisabled}
               onClick={handleSend}
-              title={hasSelection && hasText ? `Send to ${selectedTabIds.length} AI(s)` : 'Select tabs and enter message'}
+              title={
+                hasSelection && hasText
+                  ? t('send_to_n', [String(selectedTabIds.length)])
+                  : t('select_tabs_and_enter_message')
+              }
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
                 !sendDisabled 
                   ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
@@ -356,7 +362,7 @@ export default function Popup() {
               {sending ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
               ) : (
-                <Send className="h-4 w-4" strokeWidth={2.5} />
+                <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               )}
             </button>
           </div>
