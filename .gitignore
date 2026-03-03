@@ -4,6 +4,10 @@ dist/
 .env.local
 .DS_Store
 
+# Keep prebuilt extension popup bundle in repo for direct "Download ZIP" usage
+!app/dist/
+!app/dist/**
+
 # 构建产物
 *.zip
 *.crx

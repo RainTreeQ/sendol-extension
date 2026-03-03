@@ -12,12 +12,13 @@
 
 1. 在 Chrome（或 Chromium 系浏览器）打开 `chrome://extensions/`，开启「开发者模式」
 2. 点击「加载已解压的扩展程序」，选择**本仓库根目录**
-3. 弹窗入口为 `popup.html`（无需先构建）
-4. 若需构建 `app/` 下的 React 页面：`cd app && npm run build`
+3. 弹窗入口为 `app/dist/popup.html`（默认随仓库提供）
+4. 若你改了 `app/` 下的 React Popup 代码：在项目根执行 `npm run build`，更新 `app/dist/` 后再重载扩展
 
 ## 代码与设计约定
 
 - **设计系统**：所有 UI 必须使用设计系统语义色与组件（见 `app/src/index.css`、`app/src/components/ui/`）。禁止在页面或组件中硬编码色值；颜色使用语义 token（如 `background`、`primary`、`muted-foreground`），组件使用 `@/components/ui`。
+- **Popup 单一来源**：以 `app/src/popup/` 为唯一源码；`app/dist/` 只存放构建产物，不直接手改。
 - **扩展逻辑**：`background.js`、`content.js` 保持纯 JS，与 Popup 通过 `chrome.runtime.sendMessage` 通信；消息协议见 `background.js`（`GET_AI_TABS`、`BROADCAST_MESSAGE`）。自动发送采用两阶段：先 `INJECT_MESSAGE`（autoSend: false）并行注入全部标签，再 `SEND_NOW` 并行触发发送。
 - **Lint**：在 `app` 目录运行 `npm run lint`，修复 ESLint 报错。
 
@@ -30,4 +31,7 @@
 ## 提交与 PR
 
 - 提交前请在本地完成构建与上述测试
+- 推荐提交流程（确保 `app/dist/` 一定被提交）：
+  - `npm run release:stage`
+  - `git add -A && git commit -m "your message"`
 - PR 描述请简要说明改动与验证方式

@@ -45,14 +45,14 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 1. **Get the code** / **获取代码**
    - Click **Code** → **Download ZIP**, then unzip.
-   - 或 Git 克隆：`git clone https://github.com/GaryQood/ai-broadcast-extension.git`
+   - 或 Git 克隆：`git clone https://github.com/RainTreeQ/sendall-extension.git`
 2. **Open extensions** / **打开扩展页面**
    - Chrome: `chrome://extensions/`
    - Edge: `edge://extensions/`
 3. Turn on **Developer mode** / 开启右上角 **开发者模式**。
 4. Click **Load unpacked** / 点击 **加载已解压的扩展程序**。
 5. Select the **project root folder** (the one containing `manifest.json`) / 选择解压后的**项目根目录**（包含 `manifest.json` 的文件夹）。
-6. No build step is required for basic use. / 普通使用无需先执行构建命令。
+6. Popup entry is `app/dist/popup.html` (prebuilt in repo). If missing locally, run `npm run build` in project root once. / 弹窗入口为 `app/dist/popup.html`（仓库已预构建）；若你本地缺失，请在项目根执行一次 `npm run build`。
 
 ## 🎯 Usage / 使用说明
 
@@ -73,7 +73,8 @@ This extension is not on the Chrome Web Store yet. Load it manually in **Develop
 
 | 模块 | 文件 | 生效方式 |
 |------|------|----------|
-| Popup UI | `popup.html`, `popup.js` | 保存后到 chrome://extensions 点击「重新加载」 |
+| Popup UI (source) | `app/src/popup/`, `app/src/components/ui/`, `app/src/index.css` | 修改后执行 `npm run build` 生成 `app/dist/`，再在 chrome://extensions 里点「重新加载」 |
+| Popup UI (runtime) | `app/dist/` | 仅作为扩展运行产物，不手工编辑 |
 | 后台 / 广播逻辑 | `background.js` | 保存后到 chrome://extensions 点击「重新加载」 |
 | 注入与平台适配 | `content.js` | 同上 |
 | 扩展配置与权限 | `manifest.json` | 同上 |

@@ -23,7 +23,7 @@
     "https://kimi.ai/*"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "app/dist/popup.html",
     "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon16.png",

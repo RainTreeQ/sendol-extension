@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Keep dist tracked for extension runtime (manifest points to app/dist/popup.html)
+!dist/
+!dist/**
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
