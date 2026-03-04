@@ -1,6 +1,5 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { RefreshCw, ArrowUp, Check } from 'lucide-react'
 import { t } from '@/lib/i18n'
@@ -42,6 +41,39 @@ const PLATFORM_STYLES = {
 }
 
 const SEND_LOADING_SOFT_TIMEOUT_MS = 9000
+const CONTEXT_ERROR_PATTERNS = [
+  'Extension context invalidated',
+  'Could not establish connection. Receiving end does not exist.',
+  'The message port closed before a response was received',
+]
+
+function isExtensionContextValid() {
+  try {
+    return Boolean(typeof chrome !== 'undefined' && chrome.runtime?.id)
+  } catch {
+    return false
+  }
+}
+
+function isRuntimeContextError(error) {
+  const message = String(error?.message || error || '')
+  return CONTEXT_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
+}
+
+function closePopupSafely() {
+  try {
+    window.close()
+  } catch {
+    // noop
+  }
+  setTimeout(() => {
+    try {
+      window.close()
+    } catch {
+      // noop
+    }
+  }, 50)
+}
 
 export default function Popup() {
   const [aiTabs, setAiTabs] = useState([])
@@ -63,6 +95,12 @@ export default function Popup() {
   const selectAllLabel =
     aiTabs.length > 0 && selectedTabIds.length === aiTabs.length ? t('deselect_all') : t('select_all')
 
+  const handleContextLoss = useCallback((error) => {
+    if (!isRuntimeContextError(error) && isExtensionContextValid()) return false
+    closePopupSafely()
+    return true
+  }, [])
+
   // Load saved preferences
   useEffect(() => {
     if (typeof chrome === 'undefined' || !chrome.storage?.local) return
@@ -74,27 +112,21 @@ export default function Popup() {
 
   // When extension is uninstalled/disabled while popup is open, close popup to avoid orphaned blank frame
   useEffect(() => {
-    function isExtensionContextValid() {
-      try {
-        return typeof chrome !== 'undefined' && chrome.runtime?.id
-      } catch {
-        return false
-      }
-    }
-    const t = setInterval(() => {
+    const timerId = setInterval(() => {
       if (!isExtensionContextValid()) {
-        clearInterval(t)
-        try {
-          window.close()
-        } catch {
-          // noop
-        }
+        clearInterval(timerId)
+        closePopupSafely()
       }
     }, 500)
-    return () => clearInterval(t)
+    return () => clearInterval(timerId)
   }, [])
 
   const loadTabs = useCallback(async () => {
+    if (!isExtensionContextValid()) {
+      setTabsLoading(false)
+      closePopupSafely()
+      return
+    }
     setTabsLoading(true)
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_AI_TABS' })
@@ -106,12 +138,13 @@ export default function Popup() {
         return prev.filter((id) => tabIdSet.has(id))
       })
     } catch (error) {
+      if (handleContextLoss(error)) return
       console.error('Error loading tabs:', error)
       setAiTabs([])
     } finally {
       setTabsLoading(false)
     }
-  }, [])
+  }, [handleContextLoss])
 
   useEffect(() => {
     if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return
@@ -179,11 +212,7 @@ export default function Popup() {
     const tabIds = [...selectedTabIds]
     const requestId = createRequestId()
     const clientTs = Date.now()
-    const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
-    const debug = Boolean(runtimeFlags?.debugLogs)
-    activeRequestIdRef.current = requestId
-
-    setProgressStatus(0, tabIds.length, 0, 0, tabIds.length)
+    let debug = false
 
     const finishWithResponse = (response) => {
       if (activeRequestIdRef.current !== requestId) return
@@ -230,7 +259,23 @@ export default function Popup() {
       addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
       activeRequestIdRef.current = null
       setSending(false)
+      if (isRuntimeContextError(err) || !isExtensionContextValid()) {
+        closePopupSafely()
+      }
     }
+
+    try {
+      const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
+      debug = Boolean(runtimeFlags?.debugLogs)
+    } catch (err) {
+      setSending(false)
+      if (handleContextLoss(err)) return
+      addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
+      return
+    }
+
+    activeRequestIdRef.current = requestId
+    setProgressStatus(0, tabIds.length, 0, 0, tabIds.length)
 
     try {
       const responsePromise = chrome.runtime.sendMessage({
@@ -265,7 +310,7 @@ export default function Popup() {
     } catch (err) {
       finishWithError(err)
     }
-  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus])
+  }, [messageText, selectedTabIds, autoSend, newChat, aiTabs, addStatus, clearStatus, loadTabs, setProgressStatus, handleContextLoss])
 
   const handleKeyDown = useCallback(
     (e) => {

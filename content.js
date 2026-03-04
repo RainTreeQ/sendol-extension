@@ -57,6 +57,37 @@ if (!window.__aiBroadcastLoaded) {
       return String(value || '').replace(/\s+/g, ' ').trim();
     }
 
+    function includesAny(text, keywords) {
+      return keywords.some((keyword) => text.includes(keyword));
+    }
+
+    function isDoubaoVerificationPage() {
+      if (!hostname.includes('doubao.com')) return false;
+
+      const urlHint = `${window.location.pathname || ''} ${window.location.search || ''}`.toLowerCase();
+      if (includesAny(urlHint, ['captcha', 'verify', 'verification', 'security', 'risk', 'waf', 'bot'])) {
+        return true;
+      }
+
+      const title = normalizeText(document.title || '').toLowerCase();
+      if (includesAny(title, ['人机验证', '安全验证', '验证码', 'captcha', 'verify', 'security check'])) {
+        return true;
+      }
+
+      const bodyText = normalizeText((document.body?.innerText || '').slice(0, 6000)).toLowerCase();
+      return includesAny(bodyText, [
+        '人机验证',
+        '安全验证',
+        '验证码',
+        '滑块验证',
+        '请先完成验证',
+        '行为验证',
+        'security check',
+        'verify you are human',
+        'captcha'
+      ]);
+    }
+
     function getContent(el) {
       if (!el) return '';
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
@@ -717,16 +748,28 @@ if (!window.__aiBroadcastLoaded) {
 
       'doubao.com': {
         name: 'Doubao',
-        findInput: () => waitFor(() =>
-          document.querySelector('textarea[placeholder]') ||
-          document.querySelector('div[contenteditable="true"]') ||
-          document.querySelector('textarea')
-        ),
+        findInput: async () => {
+          if (isDoubaoVerificationPage()) {
+            const err = new Error('豆包当前处于人机验证页面，请先完成验证后再重试');
+            err.stage = 'findInput';
+            throw err;
+          }
+          return waitFor(() =>
+            document.querySelector('textarea[placeholder]') ||
+            document.querySelector('div[contenteditable="true"]') ||
+            document.querySelector('textarea')
+          );
+        },
         async inject(el, text, options) {
           if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
           return setContentEditable(el, text, options);
         },
         async send(el) {
+          if (isDoubaoVerificationPage()) {
+            const err = new Error('豆包当前处于人机验证页面，请先完成验证后再重试');
+            err.stage = 'send';
+            throw err;
+          }
           const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
           const inContainer = (sel) => container.querySelector && container.querySelector(sel);
           const tryBtn = () => {
