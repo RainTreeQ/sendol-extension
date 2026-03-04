@@ -1,6 +1,6 @@
 /**
  * [INPUT]: type, className
- * [OUTPUT]: 统一风格输入框组件（微拟物内凹效果）
+ * [OUTPUT]: 统一风格输入框组件（popup 同款输入容器）
  * [POS]: UI基础层 - 核心表单原语
  */
 import * as React from "react"
@@ -11,12 +11,12 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
     <input
       type={type}
       className={cn(
-        "flex h-12 w-full rounded-2xl border-none bg-muted px-4 py-2 text-sm text-foreground",
-        "shadow-[inset_0_2px_4px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(0,0,0,0.1),inset_0_-1px_0_rgba(255,255,255,0.1)]",
+        "flex h-11 w-full rounded-xl border border-border bg-card px-4 py-2 text-sm text-foreground",
+        "shadow-[0_1px_0_rgba(255,255,255,0.75)_inset]",
         "transition-all duration-200",
         "file:border-0 file:bg-transparent file:text-sm file:font-medium",
         "placeholder:text-muted-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(0,0,0,0.1),inset_0_-1px_0_rgba(255,255,255,0.1)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}

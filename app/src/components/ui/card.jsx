@@ -1,6 +1,6 @@
 /**
  * [INPUT]: variant, className
- * [OUTPUT]: 统一风格卡片组件（微拟物光影变体）
+ * [OUTPUT]: 统一风格卡片组件（popup 同款分层变体）
  * [POS]: UI基础层 - 核心布局原语
  */
 import * as React from "react"
@@ -13,17 +13,17 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: [
-          "bg-card border-border",
-          "shadow-[0_4px_12px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.1),inset_0_-1px_0_rgba(0,0,0,0.05)]",
+          "bg-card border-border/90",
+          "shadow-[0_1px_0_rgba(255,255,255,0.64)_inset,0_14px_24px_-22px_rgba(0,0,0,0.55)]",
         ].join(" "),
         raised: [
-          "bg-card border-border",
-          "shadow-[0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.08)]",
-          "hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-1px_0_rgba(0,0,0,0.1)]",
+          "bg-card border-border/90",
+          "shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_20px_34px_-24px_rgba(0,0,0,0.72)]",
+          "hover:-translate-y-0.5 hover:shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_24px_38px_-24px_rgba(0,0,0,0.78)]",
         ].join(" "),
         inset: [
-          "bg-muted/30 border-transparent",
-          "shadow-[inset_0_2px_8px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(0,0,0,0.1),inset_0_-1px_0_rgba(255,255,255,0.1)]",
+          "bg-muted/65 border-border/70",
+          "shadow-[inset_0_1px_1px_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(0,0,0,0.03)]",
         ].join(" "),
       },
     },

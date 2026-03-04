@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-04 10:39 | v2.1.0 (MINOR) | Core / UI Components | `app/package.json`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/components/ui/badge.jsx`, +7 <!-- auto:9ea54d0811b3 -->
 - 2026-03-04 10:11 | v1.9.0 (MINOR) | Core / Popup UI / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `app/src/popup/Popup.jsx`, `manifest.json`, `package.json`, `scripts/precommit-automation.mjs` <!-- auto:3de90e0794dd -->
 <!-- AUTO_README_UPDATES_END -->
 
@@ -119,4 +120,11 @@ See [app/docs/L3-EXTENSION-INTEGRATION.md](app/docs/L3-EXTENSION-INTEGRATION.md)
 
 ## 📄 License / 许可证
 
-[MIT License](LICENSE)
+Starting from **v2.0.0**, this project is dual-licensed:
+
+- **Open-source**: [GNU AGPL-3.0-or-later](LICENSE)
+- **Commercial**: [Commercial Licensing Notice](COMMERCIAL_LICENSE.md)
+- **Branding**: [Trademark Policy](TRADEMARK_POLICY.md)
+
+Historical releases published under MIT (such as `1.x`) remain under MIT for
+the corresponding released code.

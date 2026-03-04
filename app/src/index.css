@@ -1,7 +1,5 @@
-/* ========== 设计系统：一切样式必须来自设计系统颜色与组件 ========== */
 @import "tailwindcss";
 
-/* 设计系统语义色 → Tailwind 工具类 */
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -24,108 +22,126 @@
   --color-switch-off: var(--switch-off);
   --radius-lg: var(--radius);
   --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 }
 
-/* ---------- Amethyst Haze 主题 (tweakcn) ---------- */
 @layer base {
   :root {
-    --background: oklch(0.9777 0.0041 301.4256);
-    --foreground: oklch(0.3651 0.0325 287.0807);
-    --card: oklch(1.0000 0 0);
-    --card-foreground: oklch(0.3651 0.0325 287.0807);
-    --popover: oklch(1.0000 0 0);
-    --popover-foreground: oklch(0.3651 0.0325 287.0807);
-    --primary: oklch(0.6104 0.0767 299.7335);
-    --primary-foreground: oklch(0.9777 0.0041 301.4256);
-    --secondary: oklch(0.8957 0.0265 300.2416);
-    --secondary-foreground: oklch(0.3651 0.0325 287.0807);
-    --muted: oklch(0.8906 0.0139 299.7754);
-    --muted-foreground: oklch(0.5288 0.0375 290.7895);
-    --accent: oklch(0.7889 0.0802 359.9375);
-    --accent-foreground: oklch(0.3394 0.0441 1.7583);
-    --destructive: oklch(0.6332 0.1578 22.6734);
-    --destructive-foreground: oklch(0.9777 0.0041 301.4256);
-    --border: oklch(0.8447 0.0226 300.1421);
-    --input: oklch(0.9329 0.0124 301.2783);
-    --ring: oklch(0.6104 0.0767 299.7335);
-    --switch-on: oklch(0.38 0.02 260);
-    --switch-off: var(--muted);
-    --radius: 0.5rem;
-    --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-    --font-serif: "Lora", Georgia, serif;
-    --font-mono: "Fira Code", "Courier New", monospace;
-    --tracking-normal: 0em;
-  }
-
-  /* 深色模式：仅靠 prefers-color-scheme 时（如扩展弹窗无 .dark 类）也提供开关高亮；有 .dark 时由下方 .dark 覆盖 */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --switch-on: oklch(0.55 0.02 260);
-      --switch-off: oklch(0.34 0.028 291);
-    }
+    /* Popup-aligned neutral design tokens */
+    --background: oklch(0.9720 0.0024 247.9);
+    --foreground: oklch(0.2415 0.0052 247.8);
+    --card: oklch(0.9980 0 0);
+    --card-foreground: oklch(0.2415 0.0052 247.8);
+    --popover: oklch(0.9980 0 0);
+    --popover-foreground: oklch(0.2415 0.0052 247.8);
+    --primary: oklch(0.2415 0.0052 247.8);
+    --primary-foreground: oklch(0.9860 0 0);
+    --secondary: oklch(0.9310 0.0021 247.9);
+    --secondary-foreground: oklch(0.2925 0.0054 247.8);
+    --muted: oklch(0.9510 0.0018 247.9);
+    --muted-foreground: oklch(0.5605 0.0058 247.8);
+    --accent: oklch(0.9130 0.0035 247.9);
+    --accent-foreground: oklch(0.2415 0.0052 247.8);
+    --destructive: oklch(0.5860 0.2110 24.6);
+    --destructive-foreground: oklch(0.9860 0 0);
+    --border: oklch(0.8840 0.0028 247.9);
+    --input: oklch(0.9460 0.0018 247.9);
+    --ring: oklch(0.5105 0.0091 247.8);
+    --switch-on: oklch(0.2925 0.0054 247.8);
+    --switch-off: oklch(0.8620 0.0025 247.9);
+    --radius: 1rem;
+    --font-sans: "Geist", "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
   }
 
   .dark {
-    --background: oklch(0.2166 0.0215 292.8474);
-    --foreground: oklch(0.9053 0.0245 293.5570);
-    --card: oklch(0.2544 0.0301 292.7315);
-    --card-foreground: oklch(0.9053 0.0245 293.5570);
-    --popover: oklch(0.2544 0.0301 292.7315);
-    --popover-foreground: oklch(0.9053 0.0245 293.5570);
-    --primary: oklch(0.7058 0.0777 302.0489);
-    --primary-foreground: oklch(0.2166 0.0215 292.8474);
-    --secondary: oklch(0.4604 0.0472 295.5578);
-    --secondary-foreground: oklch(0.9053 0.0245 293.5570);
-    --muted: oklch(0.2560 0.0320 294.8380);
-    --muted-foreground: oklch(0.6974 0.0282 300.0614);
-    --accent: oklch(0.3181 0.0321 308.6149);
-    --accent-foreground: oklch(0.8391 0.0692 2.6681);
-    --destructive: oklch(0.6875 0.1420 21.4566);
-    --destructive-foreground: oklch(0.2166 0.0215 292.8474);
-    --border: oklch(0.3063 0.0359 293.3367);
-    --input: oklch(0.2847 0.0346 291.2726);
-    --ring: oklch(0.7058 0.0777 302.0489);
-    --switch-on: oklch(0.55 0.02 260);
-    --switch-off: oklch(0.34 0.028 291);
+    --background: oklch(0.1925 0.0061 247.9);
+    --foreground: oklch(0.9300 0.0034 247.9);
+    --card: oklch(0.2350 0.0068 247.9);
+    --card-foreground: oklch(0.9300 0.0034 247.9);
+    --popover: oklch(0.2350 0.0068 247.9);
+    --popover-foreground: oklch(0.9300 0.0034 247.9);
+    --primary: oklch(0.9600 0 0);
+    --primary-foreground: oklch(0.1925 0.0061 247.9);
+    --secondary: oklch(0.3060 0.0089 247.9);
+    --secondary-foreground: oklch(0.9300 0.0034 247.9);
+    --muted: oklch(0.2720 0.0075 247.9);
+    --muted-foreground: oklch(0.7000 0.0064 247.9);
+    --accent: oklch(0.3200 0.0079 247.9);
+    --accent-foreground: oklch(0.9400 0.0034 247.9);
+    --destructive: oklch(0.6680 0.1950 24.9);
+    --destructive-foreground: oklch(0.1250 0.0042 247.9);
+    --border: oklch(0.3550 0.0082 247.9);
+    --input: oklch(0.2850 0.0078 247.9);
+    --ring: oklch(0.6200 0.0090 247.9);
+    --switch-on: oklch(0.8600 0.0029 247.9);
+    --switch-off: oklch(0.3550 0.0082 247.9);
   }
 
   body {
-    background-color: var(--background);
+    margin: 0;
     color: var(--foreground);
-    letter-spacing: var(--tracking-normal);
     font-family: var(--font-sans);
+    background:
+      radial-gradient(1100px 520px at -15% -20%, color-mix(in oklab, var(--background) 84%, black) 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% -25%, color-mix(in oklab, var(--background) 78%, black) 0%, transparent 65%),
+      linear-gradient(180deg, var(--background) 0%, color-mix(in oklab, var(--background) 94%, black) 100%);
   }
 
-  /* Extension popup: platform badges (AI tab list) */
   :root {
-    --plat-gpt-bg: oklch(0.20 0.01 260); --plat-gpt-fg: oklch(0.98 0 0);
-    --plat-claude-bg: oklch(0.85 0.06 55); --plat-claude-fg: oklch(0.45 0.08 55);
-    --plat-gemini-bg: oklch(0.75 0.12 250); --plat-gemini-fg: oklch(0.45 0.15 250);
-    --plat-grok-bg: oklch(0.92 0.01 0); --plat-grok-fg: oklch(0.25 0.02 0);
-    --plat-deepseek-bg: oklch(0.80 0.10 260); --plat-deepseek-fg: oklch(0.46 0.13 260);
-    --plat-mistral-bg: oklch(0.82 0.08 25); --plat-mistral-fg: oklch(0.5 0.12 25);
-    --plat-doubao-bg: oklch(0.20 0.01 260); --plat-doubao-fg: oklch(0.98 0 0);
-    --plat-qianwen-bg: oklch(0.89 0.07 305); --plat-qianwen-fg: oklch(0.46 0.14 305);
-    --plat-kimi-bg: oklch(0.20 0.01 260); --plat-kimi-fg: oklch(0.98 0 0);
-    --plat-unknown-bg: oklch(0.88 0.01 0); --plat-unknown-fg: oklch(0.5 0.02 0);
+    --plat-gpt-bg: oklch(0.2100 0.0048 247.9); --plat-gpt-fg: oklch(0.9850 0 0);
+    --plat-claude-bg: oklch(0.8700 0.0420 64.2); --plat-claude-fg: oklch(0.4120 0.0730 64.4);
+    --plat-gemini-bg: oklch(0.8520 0.0390 250.6); --plat-gemini-fg: oklch(0.4300 0.0770 250.4);
+    --plat-grok-bg: oklch(0.9250 0.0020 247.9); --plat-grok-fg: oklch(0.2920 0.0052 247.9);
+    --plat-deepseek-bg: oklch(0.8440 0.0500 272.7); --plat-deepseek-fg: oklch(0.4380 0.0890 272.4);
+    --plat-mistral-bg: oklch(0.8680 0.0410 49.0); --plat-mistral-fg: oklch(0.4240 0.0750 49.8);
+    --plat-doubao-bg: oklch(0.2100 0.0048 247.9); --plat-doubao-fg: oklch(0.9850 0 0);
+    --plat-qianwen-bg: oklch(0.9020 0.0360 313.5); --plat-qianwen-fg: oklch(0.4460 0.0910 313.2);
+    --plat-kimi-bg: oklch(0.2100 0.0048 247.9); --plat-kimi-fg: oklch(0.9850 0 0);
+    --plat-unknown-bg: oklch(0.9020 0.0020 247.9); --plat-unknown-fg: oklch(0.5150 0.0055 247.9);
   }
+
   .dark {
-    --plat-gpt-bg: oklch(0.18 0.01 260); --plat-gpt-fg: oklch(0.98 0 0);
-    --plat-claude-bg: oklch(0.35 0.06 55); --plat-claude-fg: oklch(0.78 0.08 55);
-    --plat-gemini-bg: oklch(0.32 0.1 250); --plat-gemini-fg: oklch(0.7 0.12 250);
-    --plat-grok-bg: oklch(0.28 0.02 0); --plat-grok-fg: oklch(0.85 0.02 0);
-    --plat-deepseek-bg: oklch(0.35 0.08 260); --plat-deepseek-fg: oklch(0.78 0.10 260);
-    --plat-mistral-bg: oklch(0.35 0.06 25); --plat-mistral-fg: oklch(0.78 0.1 25);
-    --plat-doubao-bg: oklch(0.18 0.01 260); --plat-doubao-fg: oklch(0.98 0 0);
-    --plat-qianwen-bg: oklch(0.37 0.09 305); --plat-qianwen-fg: oklch(0.86 0.09 305);
-    --plat-kimi-bg: oklch(0.18 0.01 260); --plat-kimi-fg: oklch(0.98 0 0);
-    --plat-unknown-bg: oklch(0.32 0.02 0); --plat-unknown-fg: oklch(0.65 0.02 0);
+    --plat-gpt-bg: oklch(0.2820 0.0054 247.9); --plat-gpt-fg: oklch(0.9700 0 0);
+    --plat-claude-bg: oklch(0.3820 0.0540 64.3); --plat-claude-fg: oklch(0.8250 0.0630 64.2);
+    --plat-gemini-bg: oklch(0.3700 0.0580 250.4); --plat-gemini-fg: oklch(0.8120 0.0690 250.1);
+    --plat-grok-bg: oklch(0.3140 0.0062 247.9); --plat-grok-fg: oklch(0.8420 0.0041 247.9);
+    --plat-deepseek-bg: oklch(0.3900 0.0700 272.2); --plat-deepseek-fg: oklch(0.8220 0.0760 272.2);
+    --plat-mistral-bg: oklch(0.3940 0.0580 48.8); --plat-mistral-fg: oklch(0.8200 0.0700 49.3);
+    --plat-doubao-bg: oklch(0.2820 0.0054 247.9); --plat-doubao-fg: oklch(0.9700 0 0);
+    --plat-qianwen-bg: oklch(0.4060 0.0790 313.5); --plat-qianwen-fg: oklch(0.8480 0.0810 313.4);
+    --plat-kimi-bg: oklch(0.2820 0.0054 247.9); --plat-kimi-fg: oklch(0.9700 0 0);
+    --plat-unknown-bg: oklch(0.3220 0.0065 247.9); --plat-unknown-fg: oklch(0.7020 0.0064 247.9);
   }
 }
 
 @layer components {
+  .surface-glass {
+    background: color-mix(in oklab, var(--card) 92%, transparent);
+    border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+    box-shadow:
+      0 12px 36px -24px rgba(0, 0, 0, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(14px);
+  }
+
+  .noise-grid {
+    position: relative;
+  }
+
+  .noise-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.24;
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 50%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 50%, transparent) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(circle at center, black 20%, transparent 95%);
+  }
+
   .platform-badge.platform-ChatGPT { background: var(--plat-gpt-bg); color: var(--plat-gpt-fg); }
   .platform-badge.platform-Claude { background: var(--plat-claude-bg); color: var(--plat-claude-fg); }
   .platform-badge.platform-Gemini { background: var(--plat-gemini-bg); color: var(--plat-gemini-fg); }

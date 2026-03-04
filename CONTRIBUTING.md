@@ -36,3 +36,10 @@
   - `npm run release:stage`
   - `git add -A && git commit -m "your message"`
 - PR 描述请简要说明改动与验证方式
+
+## 许可与贡献条款
+
+- 自 `v2.0.0` 起，项目默认开源许可为 `AGPL-3.0-or-later`。
+- 提交 PR 即表示你同意：你的贡献可在本仓库中以 `AGPL-3.0-or-later`
+  发布，并允许项目维护者在商业授权场景中再次授权你的贡献代码。
+- 品牌与名称使用请遵循 [TRADEMARK_POLICY.md](TRADEMARK_POLICY.md)。

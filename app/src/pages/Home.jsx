@@ -1,7 +1,7 @@
 import { Hero } from "@/components/layout/Hero";
 
 /**
- * 首页。仅使用设计系统颜色与组件。
+ * 首页落地页。
  */
 export function Home() {
   return (
