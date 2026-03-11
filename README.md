@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-11 16:38 | v2.6.1 (PATCH) | Core | `.github/workflows/e2e-monitor.yml` <!-- auto:8530c364ee64 -->
 - 2026-03-11 16:35 | v2.6.0 (MINOR) | Core / UI Components / Popup UI / Background / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/e2e-monitor.yml`, `.github/workflows/retry-failed.yml`, `.gitignore`, `app/src/components/layout/Header.jsx`, `app/src/lib/i18n.js`, +14 <!-- auto:20be7347071b -->
 - 2026-03-05 18:57 | v2.5.0 (MINOR) | Core / Popup UI / Background / Content Script | `app/src/lib/i18n.js`, `app/src/popup/Popup.jsx`, `background.js`, `content.js` <!-- auto:e01347c4e8d9 -->
 - 2026-03-05 17:59 | v2.4.0 (MINOR) | Core / i18n / Background / Content Script / Tooling | `.vscode/extensions.json`, `_locales/en/messages.json`, `_locales/zh_CN/messages.json`, `app/design-system.html`, `app/index.html`, `app/popup.html`, +10 <!-- auto:9093ccbf19c3 -->

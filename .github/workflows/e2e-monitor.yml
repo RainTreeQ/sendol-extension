@@ -67,7 +67,7 @@ jobs:
             });
 
       - name: Email notification on failure
-        if: steps.test.outputs.has_failures == 'true' && (secrets.MAIL_USERNAME != '' && secrets.MAIL_PASSWORD != '')
+        if: steps.test.outputs.has_failures == 'true'
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -75,16 +75,16 @@ jobs:
           secure: true
           username: ${{secrets.MAIL_USERNAME}}
           password: ${{secrets.MAIL_PASSWORD}}
-          subject: 🤖 Sendol: Auto-fix triggered for ${{ steps.test.outputs.failed_platforms }}
+          subject: "[Sendol] Auto-fix triggered for ${{ steps.test.outputs.failed_platforms }}"
           to: ${{secrets.NOTIFY_EMAIL}}
           from: Sendol Monitor
           body: |
             E2E tests detected failures on the following platforms:
             ${{ steps.test.outputs.failed_platforms }}
-            
-            🤖 Auto-fix workflow has been triggered.
+
+            Auto-fix workflow has been triggered.
             A Pull Request will be created shortly with suggested fixes.
-            
+
             Check the PR: ${{github.server_url}}/${{github.repository}}/pulls
-            
+
             If the PR looks good, simply click "Merge pull request".
