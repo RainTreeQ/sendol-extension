@@ -30,8 +30,13 @@ content.js.bak
 # Environment
 .env
 .env.local
+.auth/
 
 # Refactoring scripts (cleanup)
 refactor*.mjs
 fix_*.js
 update_*.js
+
+# Dev tool artifacts
+*.tgz
+ohmyinspect/

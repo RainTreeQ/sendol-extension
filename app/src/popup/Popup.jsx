@@ -111,6 +111,9 @@ export default function Popup() {
   const selectedSet = new Set(selectedTabIds)
   const hasSelection = selectedTabIds.length > 0
   const hasText = messageText.trim().length > 0
+  const trimmedMessage = messageText.trim()
+  const messageCharCount = trimmedMessage.length
+  const messagePreview = trimmedMessage.replace(/\s+/g, ' ').slice(0, 40)
   const hasImage = Boolean(imageData)
   const imageCapableTabIds = selectedTabIds.filter((id) => {
     const tab = aiTabs.find((item) => item.id === id)
@@ -786,6 +789,11 @@ export default function Popup() {
                   </button>
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400">{t('image_attached')}</span>
+              </div>
+            )}
+            {hasText && (
+              <div className="px-3 pb-1 text-[10px] text-gray-500 dark:text-zinc-400">
+                发送字数: {messageCharCount} · 预览: {messagePreview}{messageCharCount > 40 ? '…' : ''}
               </div>
             )}
             <input

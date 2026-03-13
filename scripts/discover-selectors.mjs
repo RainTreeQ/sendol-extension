@@ -8,7 +8,7 @@
  */
 
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -26,7 +26,26 @@ const PLATFORMS = {
   qianwen: { url: 'https://www.qianwen.com/', name: 'Qianwen' },
   yuanbao: { url: 'https://yuanbao.tencent.com/', name: 'Yuanbao' },
   kimi: { url: 'https://www.kimi.com/', name: 'Kimi' },
+  mistral: { url: 'https://chat.mistral.ai/', name: 'Mistral' },
 };
+
+async function isAuthGate(page) {
+  return page.evaluate(() => {
+    const hasPassword = document.querySelector('input[type="password"]') !== null;
+    const text = (document.body?.innerText || '').toLowerCase();
+    const keywords = [
+      'sign in',
+      'log in',
+      'login',
+      'continue with',
+      'register',
+      '登录',
+      '注册',
+      '继续',
+    ];
+    return hasPassword || keywords.some((k) => text.includes(k));
+  });
+}
 
 /**
  * Discover input field selectors using heuristic analysis
@@ -266,7 +285,8 @@ async function discoverSendButtonSelectors(page) {
 /**
  * Main discovery function
  */
-async function discoverSelectors(platformId) {
+async function discoverSelectors(platformId, options = {}) {
+  const { authStatePath = '' } = options;
   const platform = PLATFORMS[platformId];
   if (!platform) {
     throw new Error(`Unknown platform: ${platformId}`);
@@ -275,16 +295,33 @@ async function discoverSelectors(platformId) {
   console.log(`🔍 Discovering selectors for ${platform.name}...`);
   
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
+  const contextOptions = {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
     viewport: { width: 1280, height: 800 },
-  });
+  };
+
+  if (authStatePath) {
+    if (!existsSync(authStatePath)) {
+      await browser.close();
+      throw new Error(`Auth state file not found: ${authStatePath}`);
+    }
+    contextOptions.storageState = authStatePath;
+  }
+
+  const context = await browser.newContext(contextOptions);
   
   const page = await context.newPage();
   
   try {
     await page.goto(platform.url, { waitUntil: 'domcontentloaded', timeout: 25000 });
     await page.waitForTimeout(5000); // Wait for dynamic content
+
+    const authGate = await isAuthGate(page);
+    if (authGate && !authStatePath) {
+      throw new Error(
+        `${platform.name} requires authentication. Re-run with --auth <storage-state.json>.`
+      );
+    }
     
     // Discover input selectors
     const inputCandidates = await discoverInputSelectors(page);
@@ -352,7 +389,16 @@ function updateSelectorsFile(platformId, discovered) {
  * CLI entry point
  */
 async function main() {
-  const platformId = process.argv[2];
+  const args = process.argv.slice(2);
+  const platformId = args[0];
+  let authStatePath = process.env.PLAYWRIGHT_AUTH_STATE_PATH || '';
+
+  for (let i = 1; i < args.length; i += 1) {
+    if (args[i] === '--auth' && args[i + 1]) {
+      authStatePath = args[i + 1];
+      i += 1;
+    }
+  }
   
   if (!platformId) {
     console.error('Usage: node scripts/discover-selectors.mjs <platform>');
@@ -361,13 +407,15 @@ async function main() {
   }
   
   try {
-    const discovered = await discoverSelectors(platformId);
+    const discovered = await discoverSelectors(platformId, { authStatePath });
+    const updated = updateSelectorsFile(platformId, discovered);
     
     console.log('\n📊 Discovery Results:');
     console.log(`  Platform: ${discovered.platformName}`);
     console.log(`  Confidence: ${discovered.confidence}%`);
     console.log(`  Input selectors: ${discovered.findInput.length}`);
     console.log(`  Button selectors: ${discovered.findSendBtn.length}`);
+    console.log(`  Previous input selectors: ${(updated.old?.findInput || []).length}`);
     
     if (discovered.confidence < 70) {
       console.warn('\n⚠️  Low confidence score. Manual review recommended.');
@@ -379,11 +427,12 @@ async function main() {
     console.log('  Send button:');
     discovered.findSendBtn.forEach((s, i) => console.log(`    ${i + 1}. ${s}`));
     
-    // Output JSON for GitHub Actions
-    console.log('\n::set-output name=confidence::' + discovered.confidence);
-    console.log('::set-output name=platform::' + discovered.platformName);
-    console.log('::set-output name=input_selectors::' + JSON.stringify(discovered.findInput));
-    console.log('::set-output name=button_selectors::' + JSON.stringify(discovered.findSendBtn));
+    if (process.env.GITHUB_OUTPUT) {
+      appendFileSync(process.env.GITHUB_OUTPUT, `confidence=${discovered.confidence}\n`);
+      appendFileSync(process.env.GITHUB_OUTPUT, `platform=${discovered.platformName}\n`);
+      appendFileSync(process.env.GITHUB_OUTPUT, `input_selectors=${JSON.stringify(discovered.findInput)}\n`);
+      appendFileSync(process.env.GITHUB_OUTPUT, `button_selectors=${JSON.stringify(discovered.findSendBtn)}\n`);
+    }
     
   } catch (error) {
     console.error('❌ Discovery failed:', error.message);

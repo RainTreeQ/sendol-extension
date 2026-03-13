@@ -165,6 +165,8 @@
     },
     grok: {
       findInput: [
+        'div.ProseMirror[contenteditable="true"]',
+        'div.tiptap[contenteditable="true"]',
         "textarea[placeholder]",
         "textarea",
         'div[contenteditable="true"][role="textbox"]',
@@ -615,7 +617,6 @@
       normalizeText,
       getContent,
       sleep,
-      pressEnterOn,
       isNodeDisabled
     } = deps;
     return {
@@ -646,7 +647,7 @@
         const pickBestInput = () => {
           const candidates = [];
           for (const root of collectRoots()) {
-            candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
+            candidates.push(...root.querySelectorAll('div.ProseMirror[contenteditable="true"], div.tiptap[contenteditable="true"], textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
           }
           const unique = [];
           const seen = /* @__PURE__ */ new Set();
@@ -658,14 +659,16 @@
           const scoreInput = (el) => {
             if (!isVisibleInput(el)) return -1;
             const rect = el.getBoundingClientRect();
+            const cls = String(el.className || "").toLowerCase();
             const placeholder = (el.getAttribute("placeholder") || "").toLowerCase();
             const root = el.closest("form") || el.parentElement || document;
             let score = 0;
-            if (placeholder.includes("ask") || placeholder.includes("mind") || placeholder.includes("message")) score += 6;
-            if (el.closest("form")) score += 4;
-            if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
+            if (el.matches?.('div.ProseMirror[contenteditable="true"]') || cls.includes("prosemirror") || cls.includes("tiptap")) score += 8;
+            if (placeholder.includes("ask") || placeholder.includes("mind") || placeholder.includes("message")) score += 4;
+            if (el.closest("form")) score += 3;
+            if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 3;
             if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
-            score += Math.min(4, Math.round(rect.width / 300));
+            score += Math.min(4, Math.round(rect.width / 320));
             return score;
           };
           let best = null;
@@ -684,8 +687,94 @@
         return waitFor(() => pickBestInput(), 7e3, 60);
       },
       async inject(el, text, options) {
-        if (el.tagName === "TEXTAREA") return setReactValue(el, text);
-        return setContentEditable(el, text, options);
+        const expected = normalizeText(text);
+        const verifyAfterFlush = async (waitMs = 300) => {
+          await sleep(waitMs);
+          const actual = normalizeText(getContent(el));
+          if (!expected) return actual.length === 0;
+          if (!actual) return false;
+          if (actual === expected) return true;
+          if (actual.length < Math.floor(expected.length * 0.8)) return false;
+          return actual.includes(expected) || expected.includes(actual);
+        };
+        const clearEditor = async () => {
+          el.focus();
+          await sleep(20);
+          document.execCommand("selectAll", false, null);
+          document.execCommand("delete", false, null);
+          await sleep(16);
+        };
+        const tryPasteEvent = async () => {
+          await clearEditor();
+          const dt = new DataTransfer();
+          dt.setData("text/plain", text);
+          dt.setData("text/html", `<p>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`);
+          el.dispatchEvent(new ClipboardEvent("paste", {
+            clipboardData: dt,
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }));
+          return verifyAfterFlush(300);
+        };
+        const tryRealClipboardPaste = async () => {
+          await clearEditor();
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch (_) {
+            return false;
+          }
+          document.execCommand("paste");
+          return verifyAfterFlush(300);
+        };
+        const tryInputEventPaste = async () => {
+          await clearEditor();
+          const dt = new DataTransfer();
+          dt.setData("text/plain", text);
+          try {
+            el.dispatchEvent(new InputEvent("beforeinput", {
+              inputType: "insertFromPaste",
+              dataTransfer: dt,
+              bubbles: true,
+              cancelable: true,
+              composed: true
+            }));
+          } catch (_) {
+            return false;
+          }
+          return verifyAfterFlush(300);
+        };
+        const tryExecInsert = async () => {
+          await clearEditor();
+          document.execCommand("insertText", false, text);
+          return verifyAfterFlush(400);
+        };
+        if (el.tagName === "TEXTAREA") {
+          setReactValue(el, text);
+          await sleep(60);
+          if (await verifyAfterFlush(200)) return { strategy: "grok-react-value", fallbackUsed: false };
+          throw new Error("Grok textarea \u6CE8\u5165\u5931\u8D25");
+        }
+        try {
+          if (await tryPasteEvent()) return { strategy: "grok-paste-event", fallbackUsed: false };
+        } catch (_) {
+        }
+        try {
+          if (await tryRealClipboardPaste()) return { strategy: "grok-clipboard-paste", fallbackUsed: true };
+        } catch (_) {
+        }
+        try {
+          if (await tryInputEventPaste()) return { strategy: "grok-input-paste", fallbackUsed: true };
+        } catch (_) {
+        }
+        try {
+          if (await tryExecInsert()) return { strategy: "grok-exec-insert", fallbackUsed: true };
+        } catch (_) {
+        }
+        const meta = await setContentEditable(el, text, options);
+        await sleep(300);
+        if (await verifyAfterFlush(200)) return meta;
+        throw new Error("Grok \u8F93\u5165\u6CE8\u5165\u5931\u8D25\uFF1A\u6240\u6709\u7B56\u7565\u5747\u672A\u751F\u6548");
       },
       async send(el, options) {
         const logger = options?.logger;
@@ -693,8 +782,7 @@
           matchedBy: "none",
           clicked: false,
           formSubmitted: false,
-          keyAttempts: [],
-          finalChanged: false
+          keyAttempts: []
         };
         const isVisible = (node) => {
           if (!node) return false;
@@ -705,22 +793,19 @@
         };
         const triggerClick = (node) => {
           if (!node) return;
-          for (const evt of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) {
-            try {
-              node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
-            } catch (err) {
-            }
-          }
           try {
-            node.click?.();
-          } catch (err) {
+            node.click();
+          } catch (_) {
           }
         };
         const roots = () => {
           const list = [
             el?.closest("form"),
+            el?.closest(".ProseMirror")?.parentElement,
+            el?.closest(".ProseMirror")?.parentElement?.parentElement,
+            el?.closest('[class*="composer"]'),
+            el?.closest('[class*="editor"]'),
             el?.parentElement,
-            el?.closest('div[class*="input"]'),
             el?.closest("main"),
             document
           ].filter(Boolean);
@@ -736,7 +821,7 @@
         const tryFindBtn = () => {
           const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
           for (const root of roots()) {
-            const buttons = root.querySelectorAll ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]') : [];
+            const buttons = root.querySelectorAll ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], [data-testid*="send"], [data-testid*="submit"], [class*="send"][class*="button"], [class*="submit"][class*="button"]') : [];
             let fallbackCandidate = null;
             let proximityCandidate = null;
             let proximityScore = -Infinity;
@@ -757,13 +842,13 @@
               const centerY = r.top + r.height / 2;
               const dx = centerX - (inputRect.left + inputRect.width);
               const dy = centerY - (inputRect.top + inputRect.height / 2);
-              const nearHorizontally = dx >= -24 && dx <= 240;
-              const nearVertically = Math.abs(dy) <= 140;
+              const nearHorizontally = dx >= -80 && dx <= 420;
+              const nearVertically = Math.abs(dy) <= 240;
               if (!nearHorizontally || !nearVertically) continue;
               let score = 0;
-              score -= Math.abs(dx) * 0.45;
-              score -= Math.abs(dy) * 0.25;
-              if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
+              score -= Math.abs(dx) * 0.3;
+              score -= Math.abs(dy) * 0.2;
+              if (r.width >= 18 && r.width <= 84 && r.height >= 18 && r.height <= 84) score += 12;
               if (button.querySelector?.("svg")) score += 8;
               if ((button.textContent || "").trim().length === 0) score += 6;
               if ((button.getAttribute("aria-label") || "").trim()) score += 4;
@@ -781,143 +866,77 @@
               return proximityCandidate;
             }
           }
-          const localScope = el?.closest("form") || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
-          if (localScope && inputRect) {
-            const nodes = localScope.querySelectorAll("*");
-            let best = null;
-            let bestScore = -Infinity;
-            for (const node of nodes) {
-              if (!isVisible(node) || isNodeDisabled(node)) continue;
-              if (node === el || node.contains?.(el)) continue;
-              const r = node.getBoundingClientRect();
-              if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
-              const centerX = r.left + r.width / 2;
-              const centerY = r.top + r.height / 2;
-              const dx = centerX - (inputRect.left + inputRect.width);
-              const dy = centerY - (inputRect.top + inputRect.height / 2);
-              if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
-              const hasSvg = Boolean(node.querySelector?.("svg,path,use"));
-              const hint = `${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("data-testid") || ""} ${node.className || ""}`.toLowerCase();
-              if (!hasSvg && !hint.includes("send") && !hint.includes("submit") && !hint.includes("arrow")) continue;
-              let score = 0;
-              score -= Math.abs(dx) * 0.4;
-              score -= Math.abs(dy) * 0.3;
-              if (hasSvg) score += 14;
-              if (hint.includes("send") || hint.includes("submit") || hint.includes("arrow")) score += 10;
-              if (score > bestScore) {
-                bestScore = score;
-                best = node;
-              }
-            }
-            if (best) {
-              sendTrace.matchedBy = "scope:svg-proximity";
-              return best;
-            }
-          }
           return null;
         };
         const selectorBtn = await findSendBtnForPlatform2("grok");
         const btn = selectorBtn || await waitFor(tryFindBtn, 3500, 40);
         const target = el || document.activeElement;
         const before = normalizeText(getContent(target));
-        const tryKeySend = async () => {
-          if (!target) return false;
-          target.focus();
-          const attempts = [
-            { ctrlKey: false, metaKey: false, tag: "enter" },
-            { ctrlKey: true, metaKey: false, tag: "ctrl-enter" },
-            { ctrlKey: false, metaKey: true, tag: "meta-enter" }
-          ];
-          for (const attempt of attempts) {
-            target.dispatchEvent(new KeyboardEvent("keydown", {
-              key: "Enter",
-              code: "Enter",
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              ctrlKey: attempt.ctrlKey,
-              metaKey: attempt.metaKey
-            }));
-            target.dispatchEvent(new KeyboardEvent("keypress", {
-              key: "Enter",
-              code: "Enter",
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              ctrlKey: attempt.ctrlKey,
-              metaKey: attempt.metaKey
-            }));
-            target.dispatchEvent(new KeyboardEvent("keyup", {
-              key: "Enter",
-              code: "Enter",
-              keyCode: 13,
-              which: 13,
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              ctrlKey: attempt.ctrlKey,
-              metaKey: attempt.metaKey
-            }));
-            await sleep(180);
-            const after2 = normalizeText(getContent(target));
-            sendTrace.keyAttempts.push(attempt.tag);
-            if (!before || after2 !== before) {
-              sendTrace.finalChanged = true;
-              return true;
-            }
-            logger?.debug("grok-send-key-no-change", { mode: attempt.tag });
+        const expected = normalizeText(options?.text || before);
+        const probe = expected.length >= 4 ? expected.slice(0, 24) : "";
+        const threadBefore = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
+        const confirmSendCheck = () => {
+          const after = normalizeText(getContent(target));
+          if (before && after.length === 0) return true;
+          if (before && after !== before && btn && isNodeDisabled(btn)) return true;
+          if (!before && after.length === 0 && probe) {
+            const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
+            if (threadNow.includes(probe)) return true;
+          }
+          if (probe) {
+            const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || "").slice(0, 12e3));
+            if (!threadBefore.includes(probe) && threadNow.includes(probe)) return true;
+          }
+          if (expected && before === expected && after.length === 0) return true;
+          return false;
+        };
+        const waitForConfirm = async (maxMs = 2e3) => {
+          const interval = 100;
+          const maxAttempts = Math.ceil(maxMs / interval);
+          for (let i = 0; i < maxAttempts; i++) {
+            if (confirmSendCheck()) return true;
+            await sleep(interval);
           }
           return false;
         };
-        const tryFormSubmit = async () => {
-          const form = target?.closest?.("form");
-          if (!form) return false;
+        if (!btn) {
+          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+        }
+        triggerClick(btn);
+        sendTrace.clicked = true;
+        if (await waitForConfirm(2500)) return true;
+        logger?.debug("grok-send-click-no-confirm");
+        const form = target?.closest?.("form");
+        if (form) {
           try {
             if (typeof form.requestSubmit === "function") form.requestSubmit();
             else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-          } catch (err) {
+          } catch (_) {
           }
           sendTrace.formSubmitted = true;
-          await sleep(220);
-          const after2 = normalizeText(getContent(target));
-          const changed2 = !before || after2 !== before;
-          if (changed2) sendTrace.finalChanged = true;
-          return changed2;
-        };
-        if (btn) {
-          triggerClick(btn);
-          sendTrace.clicked = true;
-          await sleep(220);
-          const afterClick = normalizeText(getContent(target));
-          if (!before || afterClick !== before) {
-            sendTrace.finalChanged = true;
-            return true;
-          }
-          logger?.debug("grok-send-click-no-change");
-          const formSubmitOk = await tryFormSubmit();
-          if (formSubmitOk) return true;
-          const keySendOk2 = await tryKeySend();
-          if (keySendOk2) return true;
-          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
+          if (await waitForConfirm(2e3)) return true;
         }
-        if (!target) {
-          pressEnterOn(null);
-          return false;
-        }
-        const keySendOk = await tryKeySend();
-        if (keySendOk) return true;
-        pressEnterOn(target);
-        await sleep(180);
-        const after = normalizeText(getContent(target));
-        const changed = !before || after !== before;
-        if (changed) {
-          sendTrace.finalChanged = true;
-          return true;
-        }
+        target?.focus?.();
+        target?.dispatchEvent(new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }));
+        target?.dispatchEvent(new KeyboardEvent("keyup", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }));
+        sendTrace.keyAttempts.push("enter");
+        if (await waitForConfirm(2e3)) return true;
         throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
       }
     };
@@ -1074,6 +1093,9 @@
         if (!expected) return actual.length === 0;
         if (!actual) return false;
         if (actual === expected) return true;
+        if (expected.length <= 8) return false;
+        if (actual.length < expected.length * 0.9) return false;
+        if (actual.length > expected.length * 1.35) return false;
         return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
       };
       return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
@@ -1085,7 +1107,9 @@
         if (!expected) return actual.length === 0;
         if (!actual) return false;
         if (actual === expected) return true;
+        if (expected.length <= 8) return false;
         if (actual.length < expected.length * 0.95) return false;
+        if (actual.length > expected.length * 1.2) return false;
         return actual.includes(expected) || expected.includes(actual);
       };
       return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
@@ -1107,13 +1131,6 @@
       document.execCommand("selectAll", false, null);
       document.execCommand("delete", false, null);
       await sleep(8);
-      el.dispatchEvent(new InputEvent("beforeinput", {
-        inputType: "insertText",
-        data: text,
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }));
       document.execCommand("insertText", false, text);
       const verified = await verifyContent(el, text);
       if (verified) {
@@ -1422,21 +1439,34 @@
       const className = node.className?.toString().toLowerCase() || "";
       if (className.includes("disabled") || className.includes("is-disabled")) return true;
       return false;
+    }, formatLogData = function(data) {
+      if (data === void 0 || data === null) return "";
+      if (typeof data !== "object") return String(data);
+      try {
+        const parts = [];
+        for (const [k, v] of Object.entries(data)) {
+          if (v === void 0) continue;
+          parts.push(`${k}=${typeof v === "object" ? JSON.stringify(v) : v}`);
+        }
+        return parts.join(" | ");
+      } catch (_) {
+        return String(data);
+      }
     }, createLogger = function(requestId, debug) {
       const prefix = `[AIB][content][${requestId}]`;
       return {
         info(event, data = void 0) {
           if (data === void 0) console.log(`${prefix} ${event}`);
-          else console.log(`${prefix} ${event}`, data);
+          else console.log(`${prefix} ${event} | ${formatLogData(data)}`);
         },
         error(event, data = void 0) {
           if (data === void 0) console.error(`${prefix} ${event}`);
-          else console.error(`${prefix} ${event}`, data);
+          else console.error(`${prefix} ${event} | ${formatLogData(data)}`);
         },
         debug(event, data = void 0) {
           if (!debug) return;
           if (data === void 0) console.log(`${prefix} ${event}`);
-          else console.log(`${prefix} ${event}`, data);
+          else console.log(`${prefix} ${event} | ${formatLogData(data)}`);
         }
       };
     }, normalizeText = function(value) {
@@ -2100,7 +2130,7 @@
               sendResponse({ success: false, error: riskReason, platform: platform.name });
               return;
             }
-            const input = await platform.findInput();
+            let input = await platform.findInput();
             if (!input) {
               sendResponse({ success: false, error: `\u627E\u4E0D\u5230 ${platform.name} \u8F93\u5165\u6846`, platform: platform.name });
               return;
@@ -2167,6 +2197,7 @@
         const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
         const debug = Boolean(message.debug);
         const safeMode = Boolean(message.safeMode);
+        const expectedText = normalizeText(message.text || "");
         const logger = createLogger(requestId, debug);
         const platformId = resolvePlatformId();
         const platform = getPlatform();
@@ -2192,7 +2223,7 @@
               });
               return;
             }
-            const input = await platform.findInput();
+            let input = await platform.findInput();
             if (!input) {
               sendResponse({
                 success: false,
@@ -2201,6 +2232,41 @@
                 debugLog: `send_now | platform=${platform.name} | stage=findInput | error=\u627E\u4E0D\u5230\u8F93\u5165\u6846`
               });
               return;
+            }
+            if (expectedText) {
+              let current = normalizeText(getContent(input));
+              const expectedPrefix = expectedText.slice(0, Math.min(expectedText.length, 24));
+              const matches = (value) => {
+                if (!value) return false;
+                return value.includes(expectedPrefix) || expectedText.includes(value);
+              };
+              if (!matches(current)) {
+                await sleep(180);
+                const refreshedInput = await platform.findInput();
+                if (refreshedInput) {
+                  input = refreshedInput;
+                  current = normalizeText(getContent(input));
+                }
+              }
+              if (!matches(current)) {
+                const bodyText = normalizeText((document.body?.innerText || "").slice(0, 6e3));
+                const likelyAlreadySent = !current && expectedPrefix && bodyText.includes(expectedPrefix);
+                if (likelyAlreadySent) {
+                  sendResponse({
+                    success: true,
+                    sendMs: now() - t0,
+                    debugLog: `send_now | platform=${platform.name} | stage=precheck | ok=already-sent | textLen=${expectedText.length} | inputLen=${current.length}`
+                  });
+                  return;
+                }
+                sendResponse({
+                  success: false,
+                  sendMs: now() - t0,
+                  error: "\u53D1\u9001\u524D\u8F93\u5165\u6846\u5185\u5BB9\u4E0D\u5339\u914D",
+                  debugLog: `send_now | platform=${platform.name} | stage=precheck | error=\u53D1\u9001\u524D\u8F93\u5165\u6846\u5185\u5BB9\u4E0D\u5339\u914D | textLen=${expectedText.length} | inputLen=${current.length}`
+                });
+                return;
+              }
             }
             const sent = await platform.send(input, { logger, debug, safeMode });
             if (sent === false) {
@@ -2258,6 +2324,10 @@
             sendMs: 0,
             totalMs: 0
           };
+          const normalizedPayload = normalizeText(text);
+          const payloadLen = normalizedPayload.length;
+          const payloadPreview = normalizedPayload.slice(0, 40).replace(/\|/g, "\xA6");
+          let inputLenAfterInject = 0;
           let stage = "findInput";
           let strategy = "n/a";
           let fallbackUsed = false;
@@ -2295,6 +2365,12 @@
             timings.injectMs = now() - injectStartedAt;
             strategy = injectMeta?.strategy || strategy;
             fallbackUsed = Boolean(injectMeta?.fallbackUsed);
+            inputLenAfterInject = normalizeText(getContent(input)).length;
+            if (payloadLen > 0 && inputLenAfterInject === 0) {
+              const injectErr = new Error("\u8F93\u5165\u6846\u5185\u5BB9\u4E3A\u7A7A");
+              injectErr.stage = "inject";
+              throw injectErr;
+            }
             if (autoSend) {
               stage = "send";
               await waitForSendReady(platformId, input);
@@ -2322,7 +2398,7 @@
               timings,
               strategy,
               fallbackUsed,
-              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${autoSend ? "send" : "inject"} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${autoSend ? "send" : "inject"} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | textLen=${payloadLen} | inputLen=${inputLenAfterInject} | textHead=${payloadPreview} | ms=${timings.totalMs}`
             });
           } catch (err) {
             timings.totalMs = now() - startedAt;
@@ -2344,7 +2420,7 @@
               timings,
               strategy,
               fallbackUsed,
-              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || "unknown"} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | textLen=${payloadLen} | inputLen=${inputLenAfterInject} | textHead=${payloadPreview} | ms=${timings.totalMs}`
             });
           }
         })();

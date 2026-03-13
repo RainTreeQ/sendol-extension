@@ -25,6 +25,9 @@ export function contentLooksInjected(el, text) {
   if (!expected) return actual.length === 0;
   if (!actual) return false;
   if (actual === expected) return true;
+  if (expected.length <= 8) return false;
+  if (actual.length < expected.length * 0.9) return false;
+  if (actual.length > expected.length * 1.35) return false;
   return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
 }
 
@@ -35,7 +38,9 @@ export function contentLooksInjectedStrict(el, text) {
   if (!expected) return actual.length === 0;
   if (!actual) return false;
   if (actual === expected) return true;
+  if (expected.length <= 8) return false;
   if (actual.length < expected.length * 0.95) return false;
+  if (actual.length > expected.length * 1.2) return false;
   return actual.includes(expected) || expected.includes(actual);
 }
 

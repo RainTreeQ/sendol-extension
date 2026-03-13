@@ -13,6 +13,9 @@ export function createInjectionTools(deps) {
       if (!expected) return actual.length === 0;
       if (!actual) return false;
       if (actual === expected) return true;
+      if (expected.length <= 8) return false;
+      if (actual.length < expected.length * 0.9) return false;
+      if (actual.length > expected.length * 1.35) return false;
       return actual.includes(expected.slice(0, Math.min(expected.length, 24)));
     };
     return waitForCheck(() => contentLooksInjected(el, text), timeout, interval);
@@ -25,7 +28,9 @@ export function createInjectionTools(deps) {
       if (!expected) return actual.length === 0;
       if (!actual) return false;
       if (actual === expected) return true;
+      if (expected.length <= 8) return false;
       if (actual.length < expected.length * 0.95) return false;
+      if (actual.length > expected.length * 1.2) return false;
       return actual.includes(expected) || expected.includes(actual);
     };
     return waitForCheck(() => contentLooksInjectedStrict(el, text), timeout, interval);
@@ -51,13 +56,6 @@ export function createInjectionTools(deps) {
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
     await sleep(8);
-    el.dispatchEvent(new InputEvent('beforeinput', {
-      inputType: 'insertText',
-      data: text,
-      bubbles: true,
-      cancelable: true,
-      composed: true
-    }));
     document.execCommand('insertText', false, text);
     const verified = await verifyContent(el, text);
     if (verified) {

@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -33,172 +33,232 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Validate required secrets
+        id: secrets
+        run: |
+          if [ -z "${{ secrets.SELECTORS_REPO_PAT }}" ]; then
+            echo "ready=false" >> $GITHUB_OUTPUT
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Circuit breaker for repeated failures
+        id: breaker
+        if: steps.secrets.outputs.ready == 'true'
+        uses: actions/github-script@v7
+        env:
+          FAILED_PLATFORMS: ${{ inputs.failed_platforms }}
+        with:
+          github-token: ${{ secrets.SELECTORS_REPO_PAT }}
+          script: |
+            const platforms = process.env.FAILED_PLATFORMS
+              .split(',')
+              .map((p) => p.trim())
+              .filter(Boolean);
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const threshold = 3;
+            let blockedPlatform = '';
+            let blockedCount = 0;
+
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: 'RainTreeQ',
+              repo: 'sendol-selectors',
+              state: 'all',
+              sort: 'created',
+              direction: 'desc',
+              per_page: 100,
+            });
+
+            for (const platform of platforms) {
+              const count = pulls.filter((pr) => {
+                if (!pr.title.includes('Auto-fix')) return false;
+                if (!pr.title.includes(platform)) return false;
+                return new Date(pr.created_at).getTime() >= sevenDaysAgo;
+              }).length;
+
+              if (count >= threshold) {
+                blockedPlatform = platform;
+                blockedCount = count;
+                break;
+              }
+            }
+
+            const blocked = blockedPlatform.length > 0;
+            core.setOutput('blocked', blocked ? 'true' : 'false');
+            core.setOutput('blocked_platform', blockedPlatform);
+            core.setOutput('blocked_count', blockedCount.toString());
+
+      - name: Prepare auth state (optional)
+        if: steps.secrets.outputs.ready == 'true' && steps.breaker.outputs.blocked != 'true' && secrets.PLATFORM_AUTH_STATES_B64 != ''
+        run: |
+          mkdir -p .auth
+          echo "${{ secrets.PLATFORM_AUTH_STATES_B64 }}" | base64 -d > .auth/storage-state.json
+
       - name: Discover selectors for failed platforms
         id: discover
+        if: steps.secrets.outputs.ready == 'true' && steps.breaker.outputs.blocked != 'true'
         run: |
           IFS=',' read -ra PLATFORMS <<< "${{ inputs.failed_platforms }}"
-          
-          echo "## 🔍 Selector Discovery Results" > discovery-report.md
+
+          echo "## Selector Discovery Results" > discovery-report.md
           echo "" >> discovery-report.md
-          
+
           ALL_SUCCESS=true
           FIXED_PLATFORMS=""
-          
+          AUTH_ARG=""
+          if [ -f .auth/storage-state.json ]; then
+            AUTH_ARG="--auth .auth/storage-state.json"
+          fi
+
           for platform in "${PLATFORMS[@]}"; do
+            platform="$(echo "$platform" | xargs)"
+            [ -z "$platform" ] && continue
             echo "Discovering selectors for: $platform"
-            
-            if node scripts/discover-selectors.mjs "$platform" > "discovery-$platform.log" 2>&1; then
-              CONFIDENCE=$(grep "Confidence:" "discovery-$platform.log" | awk '{print $2}' | tr -d '%')
-              
-              echo "### ✅ $platform (Confidence: ${CONFIDENCE}%)" >> discovery-report.md
+
+            if node scripts/discover-selectors.mjs "$platform" $AUTH_ARG > "discovery-$platform.log" 2>&1; then
+              CONFIDENCE=$(node -e "const fs=require('fs');const m=(fs.readFileSync('discovery-${platform}.log','utf8').match(/Confidence:\s*(\d+)%/)||[])[1]||'0';console.log(m)")
+
+              echo "### ${platform} (Confidence: ${CONFIDENCE}%)" >> discovery-report.md
               echo "" >> discovery-report.md
               echo '```' >> discovery-report.md
-              cat "discovery-$platform.log" >> discovery-report.md
+              node -e "const fs=require('fs');process.stdout.write(fs.readFileSync('discovery-${platform}.log','utf8'))" >> discovery-report.md
               echo '```' >> discovery-report.md
               echo "" >> discovery-report.md
-              
+
               FIXED_PLATFORMS="$FIXED_PLATFORMS,$platform"
-              
+
               if [ "$CONFIDENCE" -lt 80 ]; then
-                echo "⚠️ Low confidence for $platform" >> discovery-report.md
+                echo "Low confidence for $platform" >> discovery-report.md
                 ALL_SUCCESS=false
               fi
             else
-              echo "### ❌ $platform - Discovery Failed" >> discovery-report.md
+              echo "### ${platform} - Discovery Failed" >> discovery-report.md
               echo "" >> discovery-report.md
               echo '```' >> discovery-report.md
-              cat "discovery-$platform.log" >> discovery-report.md
+              node -e "const fs=require('fs');process.stdout.write(fs.readFileSync('discovery-${platform}.log','utf8'))" >> discovery-report.md
               echo '```' >> discovery-report.md
               echo "" >> discovery-report.md
               ALL_SUCCESS=false
             fi
           done
-          
+
           echo "all_success=$ALL_SUCCESS" >> $GITHUB_OUTPUT
           echo "fixed_platforms=${FIXED_PLATFORMS#,}" >> $GITHUB_OUTPUT
 
       - name: Update selectors in separate repo
         id: update
+        if: steps.secrets.outputs.ready == 'true' && steps.breaker.outputs.blocked != 'true'
+        env:
+          SELECTORS_REPO_PAT: ${{ secrets.SELECTORS_REPO_PAT }}
         run: |
-          # Clone selectors repo
-          git clone https://github.com/RainTreeQ/sendol-selectors.git selectors-repo
-          cd selectors-repo
-          
-          # Copy updated selectors.json
-          cp ../selectors.json .
-          
-          # Check if there are changes
-          if git diff --quiet selectors.json; then
+          REPO_URL="https://x-access-token:${SELECTORS_REPO_PAT}@github.com/RainTreeQ/sendol-selectors.git"
+          git clone "$REPO_URL" selectors-repo
+          cp selectors.json selectors-repo/selectors.json
+
+          if git -C selectors-repo diff --quiet selectors.json; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected"
             exit 0
           fi
-          
-          echo "has_changes=true" >> $GITHUB_OUTPUT
-          
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Create branch
+
+          git -C selectors-repo config user.name "github-actions[bot]"
+          git -C selectors-repo config user.email "github-actions[bot]@users.noreply.github.com"
+
           BRANCH="auto-fix-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
-          
-          # Commit changes
-          git add selectors.json
-          git commit -m "fix: auto-discovered selectors for ${{ inputs.failed_platforms }}"
-          
-          # Push branch
-          git push origin "$BRANCH"
-          
+          git -C selectors-repo checkout -b "$BRANCH"
+          git -C selectors-repo add selectors.json
+          git -C selectors-repo commit -m "fix: auto-discovered selectors for ${{ inputs.failed_platforms }}"
+          git -C selectors-repo push origin "$BRANCH"
+
+          echo "has_changes=true" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        if: steps.update.outputs.has_changes == 'true'
+        if: steps.secrets.outputs.ready == 'true' && steps.update.outputs.has_changes == 'true'
         uses: actions/github-script@v7
         env:
           BRANCH: ${{ steps.update.outputs.branch }}
           PLATFORMS: ${{ inputs.failed_platforms }}
           ALL_SUCCESS: ${{ steps.discover.outputs.all_success }}
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.SELECTORS_REPO_PAT }}
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('discovery-report.md', 'utf8');
-            
-            const confidence = process.env.ALL_SUCCESS === 'true' ? '95%+' : '< 80%';
-            const emoji = process.env.ALL_SUCCESS === 'true' ? '✅' : '⚠️';
-            
-            const body = `## 🤖 Auto-Fix: Selector Update
-            
-            ${emoji} **Confidence Level**: ${confidence}
-            
-            ### 📋 Affected Platforms
-            ${process.env.PLATFORMS.split(',').map(p => `- ${p}`).join('\n')}
-            
-            ### 🔍 Discovery Report
-            ${report}
-            
-            ### 📱 Action Required
-            ${process.env.ALL_SUCCESS === 'true' 
-              ? '✅ High confidence - Safe to merge if selectors look reasonable'
-              : '⚠️ Low confidence - Please review carefully before merging'}
-            
-            ---
-            
-            **How to merge:**
-            1. Review the selector changes above
-            2. If they look correct, click "Merge pull request" below
-            3. Users will auto-update within 12 hours
-            
-            **If selectors look wrong:**
-            - Close this PR
-            - Manually update selectors.json in the repo
-            `;
-            
-            // Create PR in selectors repo
-            try {
-              const pr = await github.rest.pulls.create({
-                owner: 'RainTreeQ',
-                repo: 'sendol-selectors',
-                title: \`🤖 Auto-fix: Update selectors for \${process.env.PLATFORMS}\`,
-                head: process.env.BRANCH,
-                base: 'main',
-                body: body
-              });
-              
-              console.log(\`PR created: \${pr.data.html_url}\`);
-              
-              // Add label
-              await github.rest.issues.addLabels({
-                owner: 'RainTreeQ',
-                repo: 'sendol-selectors',
-                issue_number: pr.data.number,
-                labels: ['auto-fix', process.env.ALL_SUCCESS === 'true' ? 'high-confidence' : 'needs-review']
-              });
-              
-            } catch (error) {
-              console.error('Failed to create PR:', error);
-              throw error;
-            }
 
-      - name: Comment on main repo
-        if: steps.update.outputs.has_changes == 'true'
+            const confidence = process.env.ALL_SUCCESS === 'true' ? '95%+' : '< 80%';
+            const action = process.env.ALL_SUCCESS === 'true'
+              ? 'High confidence, ready for auto-merge.'
+              : 'Low confidence, manual review required.';
+
+            const body = `## Auto-Fix: Selector Update
+
+            **Confidence Level**: ${confidence}
+
+            ### Affected Platforms
+            ${process.env.PLATFORMS.split(',').map((p) => `- ${p.trim()}`).join('\n')}
+
+            ### Discovery Report
+            ${report}
+
+            ### Action
+            ${action}`;
+
+            const pr = await github.rest.pulls.create({
+              owner: 'RainTreeQ',
+              repo: 'sendol-selectors',
+              title: `Auto-fix: Update selectors for ${process.env.PLATFORMS}`,
+              head: process.env.BRANCH,
+              base: 'main',
+              body,
+            });
+
+            await github.rest.issues.addLabels({
+              owner: 'RainTreeQ',
+              repo: 'sendol-selectors',
+              issue_number: pr.data.number,
+              labels: ['auto-fix', process.env.ALL_SUCCESS === 'true' ? 'high-confidence' : 'needs-review'],
+            });
+
+      - name: Report circuit breaker block
+        if: steps.secrets.outputs.ready == 'true' && steps.breaker.outputs.blocked == 'true'
         uses: actions/github-script@v7
         with:
           script: |
-            const issue = await github.rest.issues.create({
+            const platform = '${{ steps.breaker.outputs.blocked_platform }}';
+            const count = '${{ steps.breaker.outputs.blocked_count }}';
+            const title = `Auto-fix paused for ${platform}`;
+            const body = `Circuit breaker triggered: ${platform} has ${count} auto-fix PRs in the last 7 days.\n\nPlease investigate manually.`;
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🤖 Auto-fix PR created for selector updates',
-              body: \`A Pull Request has been created in the [selectors repository](https://github.com/RainTreeQ/sendol-selectors/pulls) to fix the following platforms:
-              
-              ${{ inputs.failed_platforms }}
-              
-              Please review and merge the PR if the selectors look correct.
-              
-              [View Pull Requests →](https://github.com/RainTreeQ/sendol-selectors/pulls)\`,
-              labels: ['auto-fix', 'needs-review']
+              title,
+              body,
+              labels: ['auto-fix', 'needs-review'],
             });
-            
-            console.log(\`Issue created: \${issue.data.html_url}\`);
+
+      - name: Comment on main repo
+        if: steps.secrets.outputs.ready == 'true' && steps.update.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Auto-fix PR created for selector updates',
+              body: `A Pull Request was created in [selectors repo](https://github.com/RainTreeQ/sendol-selectors/pulls) for: ${{ inputs.failed_platforms }}.\n\nPlease review and merge if selectors look correct.`,
+              labels: ['auto-fix', 'needs-review'],
+            });
+
+      - name: Report missing token
+        if: steps.secrets.outputs.ready != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Auto-fix disabled: missing SELECTORS_REPO_PAT',
+              body: 'Set `SELECTORS_REPO_PAT` in repository secrets to enable cross-repo selector auto-fix.',
+              labels: ['auto-fix', 'needs-review'],
+            });

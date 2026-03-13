@@ -58,21 +58,36 @@ if (!window.__aiBroadcastLoaded) {
       HIGHLIGHT_UPLOAD_ENTRY: 'HIGHLIGHT_UPLOAD_ENTRY'
     };
 
+    function formatLogData(data) {
+      if (data === undefined || data === null) return '';
+      if (typeof data !== 'object') return String(data);
+      try {
+        const parts = [];
+        for (const [k, v] of Object.entries(data)) {
+          if (v === undefined) continue;
+          parts.push(`${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`);
+        }
+        return parts.join(' | ');
+      } catch (_) {
+        return String(data);
+      }
+    }
+
     function createLogger(requestId, debug) {
       const prefix = `[AIB][content][${requestId}]`;
       return {
         info(event, data = undefined) {
           if (data === undefined) console.log(`${prefix} ${event}`);
-          else console.log(`${prefix} ${event}`, data);
+          else console.log(`${prefix} ${event} | ${formatLogData(data)}`);
         },
         error(event, data = undefined) {
           if (data === undefined) console.error(`${prefix} ${event}`);
-          else console.error(`${prefix} ${event}`, data);
+          else console.error(`${prefix} ${event} | ${formatLogData(data)}`);
         },
         debug(event, data = undefined) {
           if (!debug) return;
           if (data === undefined) console.log(`${prefix} ${event}`);
-          else console.log(`${prefix} ${event}`, data);
+          else console.log(`${prefix} ${event} | ${formatLogData(data)}`);
         }
       };
     }
@@ -797,7 +812,7 @@ if (!window.__aiBroadcastLoaded) {
               sendResponse({ success: false, error: riskReason, platform: platform.name });
               return;
             }
-            const input = await platform.findInput();
+            let input = await platform.findInput();
             if (!input) {
               sendResponse({ success: false, error: `找不到 ${platform.name} 输入框`, platform: platform.name });
               return;
@@ -866,6 +881,7 @@ if (!window.__aiBroadcastLoaded) {
         const requestId = message.requestId || `req_${now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
         const debug = Boolean(message.debug);
         const safeMode = Boolean(message.safeMode);
+        const expectedText = normalizeText(message.text || '');
         const logger = createLogger(requestId, debug);
         const platformId = resolvePlatformId();
         const platform = getPlatform();
@@ -891,7 +907,7 @@ if (!window.__aiBroadcastLoaded) {
               });
               return;
             }
-            const input = await platform.findInput();
+            let input = await platform.findInput();
             if (!input) {
               sendResponse({
                 success: false,
@@ -900,6 +916,43 @@ if (!window.__aiBroadcastLoaded) {
                 debugLog: `send_now | platform=${platform.name} | stage=findInput | error=找不到输入框`
               });
               return;
+            }
+            if (expectedText) {
+              let current = normalizeText(getContent(input));
+              const expectedPrefix = expectedText.slice(0, Math.min(expectedText.length, 24));
+              const matches = (value) => {
+                if (!value) return false;
+                return value.includes(expectedPrefix) || expectedText.includes(value);
+              };
+
+              if (!matches(current)) {
+                await sleep(180);
+                const refreshedInput = await platform.findInput();
+                if (refreshedInput) {
+                  input = refreshedInput;
+                  current = normalizeText(getContent(input));
+                }
+              }
+
+              if (!matches(current)) {
+                const bodyText = normalizeText((document.body?.innerText || '').slice(0, 6000));
+                const likelyAlreadySent = !current && expectedPrefix && bodyText.includes(expectedPrefix);
+                if (likelyAlreadySent) {
+                  sendResponse({
+                    success: true,
+                    sendMs: now() - t0,
+                    debugLog: `send_now | platform=${platform.name} | stage=precheck | ok=already-sent | textLen=${expectedText.length} | inputLen=${current.length}`
+                  });
+                  return;
+                }
+                sendResponse({
+                  success: false,
+                  sendMs: now() - t0,
+                  error: '发送前输入框内容不匹配',
+                  debugLog: `send_now | platform=${platform.name} | stage=precheck | error=发送前输入框内容不匹配 | textLen=${expectedText.length} | inputLen=${current.length}`
+                });
+                return;
+              }
             }
             const sent = await platform.send(input, { logger, debug, safeMode });
             if (sent === false) {
@@ -960,6 +1013,10 @@ if (!window.__aiBroadcastLoaded) {
             sendMs: 0,
             totalMs: 0
           };
+          const normalizedPayload = normalizeText(text);
+          const payloadLen = normalizedPayload.length;
+          const payloadPreview = normalizedPayload.slice(0, 40).replace(/\|/g, '¦');
+          let inputLenAfterInject = 0;
           let stage = 'findInput';
           let strategy = 'n/a';
           let fallbackUsed = false;
@@ -1000,6 +1057,13 @@ if (!window.__aiBroadcastLoaded) {
             timings.injectMs = now() - injectStartedAt;
             strategy = injectMeta?.strategy || strategy;
             fallbackUsed = Boolean(injectMeta?.fallbackUsed);
+            inputLenAfterInject = normalizeText(getContent(input)).length;
+
+            if (payloadLen > 0 && inputLenAfterInject === 0) {
+              const injectErr = new Error('输入框内容为空');
+              injectErr.stage = 'inject';
+              throw injectErr;
+            }
 
             if (autoSend) {
               stage = 'send';
@@ -1029,7 +1093,7 @@ if (!window.__aiBroadcastLoaded) {
               timings,
               strategy,
               fallbackUsed,
-              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${autoSend ? 'send' : 'inject'} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${autoSend ? 'send' : 'inject'} | sent=${sent} | strategy=${strategy} | fallback=${fallbackUsed} | textLen=${payloadLen} | inputLen=${inputLenAfterInject} | textHead=${payloadPreview} | ms=${timings.totalMs}`
             });
           } catch (err) {
             timings.totalMs = now() - startedAt;
@@ -1051,7 +1115,7 @@ if (!window.__aiBroadcastLoaded) {
               timings,
               strategy,
               fallbackUsed,
-              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | ms=${timings.totalMs}`
+              debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | textLen=${payloadLen} | inputLen=${inputLenAfterInject} | textHead=${payloadPreview} | ms=${timings.totalMs}`
             });
           }
         })();

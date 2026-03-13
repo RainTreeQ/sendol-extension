@@ -8,7 +8,6 @@ export function createGrokAdapter(deps) {
     normalizeText,
     getContent,
     sleep,
-    pressEnterOn,
     isNodeDisabled
   } = deps;
 
@@ -42,7 +41,7 @@ export function createGrokAdapter(deps) {
       const pickBestInput = () => {
         const candidates = [];
         for (const root of collectRoots()) {
-          candidates.push(...root.querySelectorAll('textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
+          candidates.push(...root.querySelectorAll('div.ProseMirror[contenteditable="true"], div.tiptap[contenteditable="true"], textarea[placeholder], textarea, div[contenteditable="true"][role="textbox"], div[contenteditable="true"]'));
         }
 
         const unique = [];
@@ -56,14 +55,16 @@ export function createGrokAdapter(deps) {
         const scoreInput = (el) => {
           if (!isVisibleInput(el)) return -1;
           const rect = el.getBoundingClientRect();
+          const cls = String(el.className || '').toLowerCase();
           const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
           const root = el.closest('form') || el.parentElement || document;
           let score = 0;
-          if (placeholder.includes('ask') || placeholder.includes('mind') || placeholder.includes('message')) score += 6;
-          if (el.closest('form')) score += 4;
-          if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 4;
+          if (el.matches?.('div.ProseMirror[contenteditable="true"]') || cls.includes('prosemirror') || cls.includes('tiptap')) score += 8;
+          if (placeholder.includes('ask') || placeholder.includes('mind') || placeholder.includes('message')) score += 4;
+          if (el.closest('form')) score += 3;
+          if (root.querySelector?.('button[type="submit"], button[aria-label*="Submit"], button[aria-label*="Send"], button[data-testid*="send"], [role="button"][aria-label*="Send"], [data-testid*="send"]')) score += 3;
           if (rect.top > 40 && rect.top < window.innerHeight) score += 2;
-          score += Math.min(4, Math.round(rect.width / 300));
+          score += Math.min(4, Math.round(rect.width / 320));
           return score;
         };
 
@@ -83,19 +84,119 @@ export function createGrokAdapter(deps) {
       if (isVisibleInput(bySelectors)) return bySelectors;
       return waitFor(() => pickBestInput(), 7000, 60);
     },
+
     async inject(el, text, options) {
-      if (el.tagName === 'TEXTAREA') return setReactValue(el, text);
-      return setContentEditable(el, text, options);
+      const expected = normalizeText(text);
+      // Verify after a generous delay so ProseMirror has time to flush
+      // its EditorState back to DOM. Checking too early gives false positives
+      // because execCommand writes to DOM before PM overwrites it.
+      const verifyAfterFlush = async (waitMs = 300) => {
+        await sleep(waitMs);
+        const actual = normalizeText(getContent(el));
+        if (!expected) return actual.length === 0;
+        if (!actual) return false;
+        if (actual === expected) return true;
+        if (actual.length < Math.floor(expected.length * 0.8)) return false;
+        return actual.includes(expected) || expected.includes(actual);
+      };
+
+      const clearEditor = async () => {
+        el.focus();
+        await sleep(20);
+        document.execCommand('selectAll', false, null);
+        document.execCommand('delete', false, null);
+        await sleep(16);
+      };
+
+      // Strategy 1: ClipboardEvent paste with DataTransfer
+      // Tiptap/ProseMirror listens for paste events and reads clipboardData
+      // to update its internal EditorState. This is the most reliable path.
+      const tryPasteEvent = async () => {
+        await clearEditor();
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        dt.setData('text/html', `<p>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`);
+        el.dispatchEvent(new ClipboardEvent('paste', {
+          clipboardData: dt,
+          bubbles: true,
+          cancelable: true,
+          composed: true
+        }));
+        return verifyAfterFlush(300);
+      };
+
+      // Strategy 2: Write to real clipboard + execCommand paste
+      // Some ProseMirror setups only trust the real system clipboard.
+      const tryRealClipboardPaste = async () => {
+        await clearEditor();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (_) {
+          return false;
+        }
+        document.execCommand('paste');
+        return verifyAfterFlush(300);
+      };
+
+      // Strategy 3: InputEvent beforeinput with insertFromPaste + dataTransfer
+      // This is the Input Events Level 2 paste path that some PM versions use.
+      const tryInputEventPaste = async () => {
+        await clearEditor();
+        const dt = new DataTransfer();
+        dt.setData('text/plain', text);
+        try {
+          el.dispatchEvent(new InputEvent('beforeinput', {
+            inputType: 'insertFromPaste',
+            dataTransfer: dt,
+            bubbles: true,
+            cancelable: true,
+            composed: true
+          }));
+        } catch (_) {
+          return false;
+        }
+        return verifyAfterFlush(300);
+      };
+
+      // Strategy 4: execCommand insertText (least reliable for ProseMirror)
+      const tryExecInsert = async () => {
+        await clearEditor();
+        document.execCommand('insertText', false, text);
+        return verifyAfterFlush(400);
+      };
+
+      // Textarea fallback (Grok currently does not use textarea, but keep for safety)
+      if (el.tagName === 'TEXTAREA') {
+        setReactValue(el, text);
+        await sleep(60);
+        if (await verifyAfterFlush(200)) return { strategy: 'grok-react-value', fallbackUsed: false };
+        throw new Error('Grok textarea 注入失败');
+      }
+
+      // ProseMirror / contenteditable path
+      // Try paste strategies first — they update PM's EditorState.
+      // execCommand insertText is last resort — it only updates DOM.
+      try { if (await tryPasteEvent()) return { strategy: 'grok-paste-event', fallbackUsed: false }; } catch (_) {}
+      try { if (await tryRealClipboardPaste()) return { strategy: 'grok-clipboard-paste', fallbackUsed: true }; } catch (_) {}
+      try { if (await tryInputEventPaste()) return { strategy: 'grok-input-paste', fallbackUsed: true }; } catch (_) {}
+      try { if (await tryExecInsert()) return { strategy: 'grok-exec-insert', fallbackUsed: true }; } catch (_) {}
+
+      // Final fallback: generic contenteditable injection
+      const meta = await setContentEditable(el, text, options);
+      await sleep(300);
+      if (await verifyAfterFlush(200)) return meta;
+      throw new Error('Grok 输入注入失败：所有策略均未生效');
     },
+
     async send(el, options) {
       const logger = options?.logger;
       const sendTrace = {
         matchedBy: 'none',
         clicked: false,
         formSubmitted: false,
-        keyAttempts: [],
-        finalChanged: false
+        keyAttempts: []
       };
+
       const isVisible = (node) => {
         if (!node) return false;
         const style = window.getComputedStyle(node);
@@ -106,19 +207,18 @@ export function createGrokAdapter(deps) {
 
       const triggerClick = (node) => {
         if (!node) return;
-        for (const evt of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
-          try {
-            node.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, composed: true }));
-          } catch (err) {}
-        }
-        try { node.click?.(); } catch (err) {}
+        // Only use node.click() — dispatching click + calling .click() causes double submit.
+        try { node.click(); } catch (_) {}
       };
 
       const roots = () => {
         const list = [
           el?.closest('form'),
+          el?.closest('.ProseMirror')?.parentElement,
+          el?.closest('.ProseMirror')?.parentElement?.parentElement,
+          el?.closest('[class*="composer"]'),
+          el?.closest('[class*="editor"]'),
           el?.parentElement,
-          el?.closest('div[class*="input"]'),
           el?.closest('main'),
           document
         ].filter(Boolean);
@@ -136,7 +236,7 @@ export function createGrokAdapter(deps) {
         const inputRect = el?.getBoundingClientRect ? el.getBoundingClientRect() : null;
         for (const root of roots()) {
           const buttons = root.querySelectorAll
-            ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], div[class*="send"], button[class*="send"]')
+            ? root.querySelectorAll('button, [role="button"], div[role="button"], span[role="button"], [data-testid*="send"], [data-testid*="submit"], [class*="send"][class*="button"], [class*="submit"][class*="button"]')
             : [];
           let fallbackCandidate = null;
           let proximityCandidate = null;
@@ -159,14 +259,14 @@ export function createGrokAdapter(deps) {
             const centerY = r.top + r.height / 2;
             const dx = centerX - (inputRect.left + inputRect.width);
             const dy = centerY - (inputRect.top + inputRect.height / 2);
-            const nearHorizontally = dx >= -24 && dx <= 240;
-            const nearVertically = Math.abs(dy) <= 140;
+            const nearHorizontally = dx >= -80 && dx <= 420;
+            const nearVertically = Math.abs(dy) <= 240;
             if (!nearHorizontally || !nearVertically) continue;
 
             let score = 0;
-            score -= Math.abs(dx) * 0.45;
-            score -= Math.abs(dy) * 0.25;
-            if (r.width >= 20 && r.width <= 72 && r.height >= 20 && r.height <= 72) score += 12;
+            score -= Math.abs(dx) * 0.3;
+            score -= Math.abs(dy) * 0.2;
+            if (r.width >= 18 && r.width <= 84 && r.height >= 18 && r.height <= 84) score += 12;
             if (button.querySelector?.('svg')) score += 8;
             if ((button.textContent || '').trim().length === 0) score += 6;
             if ((button.getAttribute('aria-label') || '').trim()) score += 4;
@@ -184,40 +284,6 @@ export function createGrokAdapter(deps) {
             return proximityCandidate;
           }
         }
-
-        const localScope = el?.closest('form') || el?.closest('[class*="composer"]') || el?.closest('[class*="input"]') || el?.parentElement?.parentElement || null;
-        if (localScope && inputRect) {
-          const nodes = localScope.querySelectorAll('*');
-          let best = null;
-          let bestScore = -Infinity;
-          for (const node of nodes) {
-            if (!isVisible(node) || isNodeDisabled(node)) continue;
-            if (node === el || node.contains?.(el)) continue;
-            const r = node.getBoundingClientRect();
-            if (r.width < 16 || r.height < 16 || r.width > 84 || r.height > 84) continue;
-            const centerX = r.left + r.width / 2;
-            const centerY = r.top + r.height / 2;
-            const dx = centerX - (inputRect.left + inputRect.width);
-            const dy = centerY - (inputRect.top + inputRect.height / 2);
-            if (dx < -30 || dx > 260 || Math.abs(dy) > 150) continue;
-            const hasSvg = Boolean(node.querySelector?.('svg,path,use'));
-            const hint = `${node.getAttribute?.('aria-label') || ''} ${node.getAttribute?.('data-testid') || ''} ${node.className || ''}`.toLowerCase();
-            if (!hasSvg && !hint.includes('send') && !hint.includes('submit') && !hint.includes('arrow')) continue;
-            let score = 0;
-            score -= Math.abs(dx) * 0.4;
-            score -= Math.abs(dy) * 0.3;
-            if (hasSvg) score += 14;
-            if (hint.includes('send') || hint.includes('submit') || hint.includes('arrow')) score += 10;
-            if (score > bestScore) {
-              bestScore = score;
-              best = node;
-            }
-          }
-          if (best) {
-            sendTrace.matchedBy = 'scope:svg-proximity';
-            return best;
-          }
-        }
         return null;
       };
 
@@ -225,107 +291,79 @@ export function createGrokAdapter(deps) {
       const btn = selectorBtn || await waitFor(tryFindBtn, 3500, 40);
       const target = el || document.activeElement;
       const before = normalizeText(getContent(target));
+      const expected = normalizeText(options?.text || before);
+      const probe = expected.length >= 4 ? expected.slice(0, 24) : '';
+      const threadBefore = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
 
-      const tryKeySend = async () => {
-        if (!target) return false;
-        target.focus();
-        const attempts = [
-          { ctrlKey: false, metaKey: false, tag: 'enter' },
-          { ctrlKey: true, metaKey: false, tag: 'ctrl-enter' },
-          { ctrlKey: false, metaKey: true, tag: 'meta-enter' }
-        ];
-        for (const attempt of attempts) {
-          target.dispatchEvent(new KeyboardEvent('keydown', {
-            key: 'Enter',
-            code: 'Enter',
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            ctrlKey: attempt.ctrlKey,
-            metaKey: attempt.metaKey
-          }));
-          target.dispatchEvent(new KeyboardEvent('keypress', {
-            key: 'Enter',
-            code: 'Enter',
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            ctrlKey: attempt.ctrlKey,
-            metaKey: attempt.metaKey
-          }));
-          target.dispatchEvent(new KeyboardEvent('keyup', {
-            key: 'Enter',
-            code: 'Enter',
-            keyCode: 13,
-            which: 13,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            ctrlKey: attempt.ctrlKey,
-            metaKey: attempt.metaKey
-          }));
-          await sleep(180);
-          const after = normalizeText(getContent(target));
-          sendTrace.keyAttempts.push(attempt.tag);
-          if (!before || after !== before) {
-            sendTrace.finalChanged = true;
-            return true;
-          }
-          logger?.debug('grok-send-key-no-change', { mode: attempt.tag });
+      const confirmSendCheck = () => {
+        const after = normalizeText(getContent(target));
+        // Input was cleared after send
+        if (before && after.length === 0) return true;
+        // Input changed and button became disabled (generating)
+        if (before && after !== before && btn && isNodeDisabled(btn)) return true;
+        // For new chat: before may be empty. Check if input is now empty
+        // (ProseMirror clears it after submit) AND probe appears in thread.
+        if (!before && after.length === 0 && probe) {
+          const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
+          if (threadNow.includes(probe)) return true;
+        }
+        // Probe appeared in thread (works for both new and existing chats)
+        if (probe) {
+          const threadNow = normalizeText((document.querySelector('main, [role="main"]')?.innerText || document.body?.innerText || '').slice(0, 12000));
+          if (!threadBefore.includes(probe) && threadNow.includes(probe)) return true;
+        }
+        // For new chat: if before was the injected text and now it's empty, send happened
+        if (expected && before === expected && after.length === 0) return true;
+        return false;
+      };
+
+      // Poll for send confirmation — Grok's UI can take a moment to update.
+      // We must NOT proceed to the next send strategy until we're sure the
+      // current one didn't work, otherwise we'll send a second empty message.
+      const waitForConfirm = async (maxMs = 2000) => {
+        const interval = 100;
+        const maxAttempts = Math.ceil(maxMs / interval);
+        for (let i = 0; i < maxAttempts; i++) {
+          if (confirmSendCheck()) return true;
+          await sleep(interval);
         }
         return false;
       };
 
-      const tryFormSubmit = async () => {
-        const form = target?.closest?.('form');
-        if (!form) return false;
-        try {
-          if (typeof form.requestSubmit === 'function') form.requestSubmit();
-          else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-        } catch (err) {}
-        sendTrace.formSubmitted = true;
-        await sleep(220);
-        const after = normalizeText(getContent(target));
-        const changed = !before || after !== before;
-        if (changed) sendTrace.finalChanged = true;
-        return changed;
-      };
-
-      if (btn) {
-        triggerClick(btn);
-        sendTrace.clicked = true;
-        await sleep(220);
-        const afterClick = normalizeText(getContent(target));
-        if (!before || afterClick !== before) {
-          sendTrace.finalChanged = true;
-          return true;
-        }
-        logger?.debug('grok-send-click-no-change');
-        const formSubmitOk = await tryFormSubmit();
-        if (formSubmitOk) return true;
-        const keySendOk = await tryKeySend();
-        if (keySendOk) return true;
+      if (!btn) {
         throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
       }
 
-      if (!target) {
-        pressEnterOn(null);
-        return false;
+      // Only try ONE send method. If click works, do NOT continue to form/Enter.
+      triggerClick(btn);
+      sendTrace.clicked = true;
+      if (await waitForConfirm(2500)) return true;
+      logger?.debug('grok-send-click-no-confirm');
+
+      // Only try form submit if click truly failed
+      const form = target?.closest?.('form');
+      if (form) {
+        try {
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+          else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        } catch (_) {}
+        sendTrace.formSubmitted = true;
+        if (await waitForConfirm(2000)) return true;
       }
-      const keySendOk = await tryKeySend();
-      if (keySendOk) return true;
-      pressEnterOn(target);
-      await sleep(180);
-      const after = normalizeText(getContent(target));
-      const changed = !before || after !== before;
-      if (changed) {
-        sendTrace.finalChanged = true;
-        return true;
-      }
+
+      // Only try Enter as absolute last resort
+      target?.focus?.();
+      target?.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+        bubbles: true, cancelable: true, composed: true
+      }));
+      target?.dispatchEvent(new KeyboardEvent('keyup', {
+        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+        bubbles: true, cancelable: true, composed: true
+      }));
+      sendTrace.keyAttempts.push('enter');
+      if (await waitForConfirm(2000)) return true;
+
       throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
     }
   };

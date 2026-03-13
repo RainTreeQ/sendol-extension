@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-13 15:33 | v2.11.0 (MINOR) | Core / Popup UI / Background / Content Script / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/retry-failed.yml`, `.gitignore`, `app/src/popup/Popup.jsx`, `background.js`, `content.js`, +9 <!-- auto:faf365cd50c7 -->
 - 2026-03-12 16:04 | v2.10.0 (MINOR) | Background | `background.js` <!-- auto:c98aa7de5324 -->
 - 2026-03-12 15:51 | v2.9.0 (MINOR) | Content Script / Manifest/Permissions / Core | `content.js`, `manifest.json`, `src/content/adapters/chatgpt.js`, `src/content/adapters/claude.js`, `src/content/adapters/deepseek.js`, `src/content/adapters/doubao.js`, +13 <!-- auto:f8ad4ef06b83 -->
 - 2026-03-12 14:48 | v2.8.0 (MINOR) | Popup UI / Background / Content Script / Core | `app/src/popup/Popup.jsx`, `background.js`, `content.js`, `selectors.json`, `src/content/index.js`, `src/content/selectors.js` <!-- auto:c967bde3ee04 -->
@@ -37,7 +38,6 @@
 - 2026-03-05 17:59 | v2.4.0 (MINOR) | Core / i18n / Background / Content Script / Tooling | `.vscode/extensions.json`, `_locales/en/messages.json`, `_locales/zh_CN/messages.json`, `app/design-system.html`, `app/index.html`, `app/popup.html`, +10 <!-- auto:9093ccbf19c3 -->
 - 2026-03-05 16:03 | v2.3.0 (MINOR) | Core / UI Components / Popup UI / Background / Content Script / Manifest/Permissions / Tooling | `.githooks/pre-commit`, `.gitignore`, `app/.gitignore`, `app/design-system.html`, `app/package.json`, `app/src/App.jsx`, +23 <!-- auto:19378aadd9b5 -->
 - 2026-03-04 17:56 | v2.2.0 (MINOR) | Core / UI Components / Content Script / Tooling | `.githooks/pre-commit`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/index.css`, +8 <!-- auto:2becda24e69a -->
-- 2026-03-04 10:39 | v2.1.0 (MINOR) | Core / UI Components | `app/package.json`, `app/src/App.jsx`, `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx`, `app/src/components/ui/badge.jsx`, +7 <!-- auto:9ea54d0811b3 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

@@ -919,7 +919,8 @@ async function broadcastToTabs(payload) {
               type: MESSAGE_TYPES.SEND_NOW,
               requestId,
               debug,
-              safeMode
+              safeMode,
+              text
             });
             const sendMs = Number.isFinite(sendRes?.sendMs) ? sendRes.sendMs : (now() - fallbackStartedAt);
             const sendOk = Boolean(sendRes?.success);
@@ -1235,32 +1236,10 @@ const POPUP_PAGE_PATH = 'app/dist-extension/popup.html';
 const POPUP_BOUNDS_KEY = 'popupWindowState';
 const POPUP_WINDOW_ID_KEY = 'popupWindowId';
 let boundsSaveTimer = null;
+let popupClickInFlight = false;
 
 function getPopupPageUrl() {
   return chrome.runtime.getURL(POPUP_PAGE_PATH);
-}
-
-async function focusPopupWindow(windowId, tabId = null) {
-  try {
-    const popupWindow = await chrome.windows.get(windowId);
-    if (!popupWindow?.id) return false;
-    const updateOptions = { focused: true };
-    if (popupWindow.state === 'minimized') updateOptions.state = 'normal';
-    if (Number.isInteger(tabId)) {
-      try {
-        await chrome.tabs.update(tabId, { active: true });
-      } catch {
-        // ignore tab activation errors
-      }
-    }
-    await chrome.windows.update(windowId, updateOptions);
-    const verified = await chrome.windows.get(windowId);
-    if (verified?.focused) return true;
-    await chrome.windows.update(windowId, { drawAttention: true });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function findPopupWindowByUrl() {
@@ -1269,31 +1248,39 @@ async function findPopupWindowByUrl() {
   for (const win of allWindows) {
     const matchedTab = win.tabs?.find((tab) => typeof tab?.url === 'string' && tab.url.startsWith(popupUrl));
     if (matchedTab) {
-      return { windowId: win.id, tabId: matchedTab.id };
+      return { windowId: win.id };
     }
   }
   return null;
 }
 
+async function closePopupWindow(windowId) {
+  try {
+    await chrome.windows.remove(windowId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 chrome.action.onClicked.addListener(async () => {
+  if (popupClickInFlight) return;
+  popupClickInFlight = true;
+
   try {
     const stored = await chrome.storage.local.get(POPUP_WINDOW_ID_KEY);
     let popupWindowId = Number.isInteger(stored?.[POPUP_WINDOW_ID_KEY]) ? stored[POPUP_WINDOW_ID_KEY] : null;
 
     if (popupWindowId !== null) {
-      const handled = await focusPopupWindow(popupWindowId);
-      if (handled) return;
+      await closePopupWindow(popupWindowId);
       popupWindowId = null;
       await chrome.storage.local.remove(POPUP_WINDOW_ID_KEY);
     }
 
     const discoveredPopup = await findPopupWindowByUrl();
     if (Number.isInteger(discoveredPopup?.windowId)) {
-      const handled = await focusPopupWindow(discoveredPopup.windowId, discoveredPopup.tabId);
-      if (handled) {
-        await chrome.storage.local.set({ [POPUP_WINDOW_ID_KEY]: discoveredPopup.windowId });
-        return;
-      }
+      await closePopupWindow(discoveredPopup.windowId);
+      await chrome.storage.local.remove(POPUP_WINDOW_ID_KEY);
     }
 
     const savedState = await chrome.storage.local.get(POPUP_BOUNDS_KEY);
@@ -1314,6 +1301,8 @@ chrome.action.onClicked.addListener(async () => {
     }
   } catch (err) {
     console.error('[AIB] action.onClicked error:', err);
+  } finally {
+    popupClickInFlight = false;
   }
 });
 

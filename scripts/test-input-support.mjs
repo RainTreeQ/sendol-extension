@@ -19,6 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const SELECTORS_PATH = join(ROOT, 'selectors.json');
 const RESULTS_PATH = join(ROOT, 'test-results.json');
+const AUTH_STATE_PATH = process.env.PLAYWRIGHT_AUTH_STATE_PATH || '';
 
 // Load selectors from selectors.json (single source of truth)
 const SELECTOR_CONFIG = JSON.parse(readFileSync(SELECTORS_PATH, 'utf8'));
@@ -33,6 +34,22 @@ const PLATFORMS = [
   { id: 'qianwen',  name: 'Qianwen',  url: 'https://www.qianwen.com/' },
   { id: 'yuanbao',  name: 'Yuanbao',  url: 'https://yuanbao.tencent.com/' },
   { id: 'kimi',     name: 'Kimi',     url: 'https://www.kimi.com/' },
+  { id: 'mistral',  name: 'Mistral',  url: 'https://chat.mistral.ai/' },
+];
+
+const AUTH_KEYWORDS = [
+  'sign in',
+  'log in',
+  'login',
+  'continue with',
+  'register',
+  'join now',
+  '登录',
+  '注册',
+  '继续',
+  '继续使用',
+  '立即登录',
+  '手机号登录',
 ];
 
 async function checkSelectors(page, selectors) {
@@ -61,13 +78,36 @@ async function checkSelectors(page, selectors) {
   }, selectors);
 }
 
+async function detectAuthRequired(page) {
+  return page.evaluate((keywords) => {
+    const text = (document.body?.innerText || '').toLowerCase();
+    const hasKeyword = keywords.some((k) => text.includes(k));
+    const hasPasswordInput = document.querySelector('input[type="password"]') !== null;
+    const oauthButtons = Array.from(document.querySelectorAll('button, a')).some((node) => {
+      const label = (
+        node.getAttribute('aria-label') ||
+        node.textContent ||
+        ''
+      ).toLowerCase();
+      return label.includes('google') || label.includes('apple') || label.includes('github');
+    });
+    return hasPasswordInput || (hasKeyword && oauthButtons);
+  }, AUTH_KEYWORDS);
+}
+
 async function testPlatform(browser, platform) {
   const selectors = SELECTOR_CONFIG[platform.id]?.findInput || [];
-  const ctx = await browser.newContext({
+  const contextOptions = {
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 800 },
     ignoreHTTPSErrors: true,
-  });
+  };
+
+  if (AUTH_STATE_PATH) {
+    contextOptions.storageState = AUTH_STATE_PATH;
+  }
+
+  const ctx = await browser.newContext(contextOptions);
   const page = await ctx.newPage();
 
   try {
@@ -75,6 +115,7 @@ async function testPlatform(browser, platform) {
     await page.waitForTimeout(4000);
 
     const r = await checkSelectors(page, selectors);
+    const authRequired = !r.found ? await detectAuthRequired(page) : false;
     await ctx.close();
 
     return {
@@ -82,9 +123,10 @@ async function testPlatform(browser, platform) {
       name: platform.name,
       url: platform.url,
       ...r,
-      note: !r.found
-        ? '可能未登录或页面结构已变更'
-        : r.visible ? '' : '元素存在但可能不可见',
+      status: r.found ? 'pass' : authRequired ? 'auth_required' : 'hard_fail',
+      note: r.found
+        ? r.visible ? '' : '元素存在但可能不可见'
+        : authRequired ? '需要登录后才能检测输入框（正常）' : '页面可访问但未找到输入框，疑似结构已变更',
     };
   } catch (err) {
     await ctx.close();
@@ -96,6 +138,7 @@ async function testPlatform(browser, platform) {
       selector: null,
       tag: null,
       visible: false,
+      status: 'load_failed',
       note: `加载失败: ${err.message?.slice(0, 80)}`,
     };
   }
@@ -130,22 +173,26 @@ async function main() {
   console.table(table);
 
   // ── Identify failures ────────────────────────────────────────────────────
-  // "未登录" is expected in CI — treat as warning, not failure
-  const hardFailed = results.filter(
-    (r) => !r.found && !r.note?.includes('加载失败')
-  );
-  const loadFailed = results.filter((r) => r.note?.includes('加载失败'));
+  const hardFailed = results.filter((r) => r.status === 'hard_fail');
+  const authRequired = results.filter((r) => r.status === 'auth_required');
+  const loadFailed = results.filter((r) => r.status === 'load_failed');
 
   if (loadFailed.length > 0) {
     console.log('\n⚠️  以下平台加载失败（可能是网络问题，不计入失败）:');
     loadFailed.forEach((r) => console.log(`   - ${r.name}: ${r.note}`));
   }
 
+  if (authRequired.length > 0) {
+    console.log('\nℹ️  以下平台需要登录后检测（不计入失败）:');
+    authRequired.forEach((r) => console.log(`   - ${r.name}`));
+  }
+
   // ── Write test-results.json for GitHub Actions ───────────────────────────
   const summary = {
     timestamp: new Date().toISOString(),
     total: results.length,
-    passed: results.filter((r) => r.found).length,
+    passed: results.filter((r) => r.status === 'pass').length,
+    authRequired: authRequired.length,
     failed: hardFailed.length,
     loadErrors: loadFailed.length,
     failedPlatforms: hardFailed.map((r) => r.id),
@@ -162,7 +209,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('\n✅ 所有平台测试通过（或仅因未登录未检测到，属正常）');
+  console.log('\n✅ 所有平台测试通过（或仅需登录后检测）');
   process.exit(0);
 }
 

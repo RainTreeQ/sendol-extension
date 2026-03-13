@@ -51,6 +51,8 @@ export const defaultSelectors = {
   },
   grok: {
     findInput: [
+      'div.ProseMirror[contenteditable="true"]',
+      'div.tiptap[contenteditable="true"]',
       'textarea[placeholder]',
       'textarea',
       'div[contenteditable="true"][role="textbox"]',
