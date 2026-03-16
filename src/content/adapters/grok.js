@@ -363,10 +363,17 @@ export function createGrokAdapter(deps) {
       const target = el || document.activeElement;
       const expected = normalizeText(options?.text || '');
       const before = normalizeText(getContent(target)) || expected;
+      const threadSnapshotBefore = expected.length >= 4
+        ? normalizeText((document.querySelector('[class*="conversation"], [class*="messages"], main')?.innerText || document.body.innerText || '').slice(0, 8000))
+        : '';
 
       const confirmSendCheck = () => {
         const after = normalizeText(getContent(target));
         if (before && after !== before) return true;
+        if (expected.length >= 4 && threadSnapshotBefore) {
+          const threadNow = normalizeText((document.querySelector('[class*="conversation"], [class*="messages"], main')?.innerText || document.body.innerText || '').slice(0, 8000));
+          if (threadNow !== threadSnapshotBefore && threadNow.includes(expected.slice(0, Math.min(expected.length, 20)))) return true;
+        }
         return false;
       };
 
