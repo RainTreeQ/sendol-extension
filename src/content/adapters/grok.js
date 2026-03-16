@@ -174,42 +174,30 @@ export function createGrokAdapter(deps) {
         el.focus();
         await sleep(20);
 
-        // Try React fiber onChange — the only reliable way to update a
-        // React-controlled textarea whose component actively resets DOM value.
-        const fiberKey = Object.keys(el).find(k =>
-          k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$')
-        );
-        if (fiberKey) {
-          try {
-            let fiber = el[fiberKey];
-            for (let i = 0; i < 20 && fiber; i++) {
-              const onChange = fiber.memoizedProps?.onChange || fiber.pendingProps?.onChange;
-              if (typeof onChange === 'function') {
-                const nativeSetter = Object.getOwnPropertyDescriptor(
-                  window.HTMLTextAreaElement.prototype, 'value'
-                )?.set;
-                if (nativeSetter) nativeSetter.call(el, text);
-                else el.value = text;
-                const tracker = el._valueTracker;
-                if (tracker) tracker.setValue('');
-                onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
-                el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                await sleep(80);
-                if (normalizeText(getContent(el)) === normalizeText(text)) {
-                  return { strategy: 'grok-react-fiber', fallbackUsed: false };
-                }
-                break;
-              }
-              fiber = fiber.return;
-            }
-          } catch (_) {}
-        }
+        el.select();
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', ctrlKey: true, bubbles: true, cancelable: true }));
+        el.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', code: 'KeyA', ctrlKey: true, bubbles: true }));
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', code: 'Delete', bubbles: true, cancelable: true }));
+        el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Delete', code: 'Delete', bubbles: true }));
+        await sleep(16);
 
-        // Fallback: standard setReactValue
+        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+        if (nativeSetter) nativeSetter.call(el, text);
+        else el.value = text;
+        const tracker = el._valueTracker;
+        if (tracker) tracker.setValue('');
+
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        await sleep(60);
+
+        if (await verifyAfterFlush(200)) return { strategy: 'grok-react-value', fallbackUsed: false };
+
         setReactValue(el, text);
         await sleep(80);
-        return { strategy: 'grok-react-value', fallbackUsed: false };
+        if (await verifyAfterFlush(200)) return { strategy: 'grok-react-value-retry', fallbackUsed: true };
+
+        throw new Error('Grok textarea 注入失败');
       }
 
       // ProseMirror / contenteditable path
@@ -381,9 +369,6 @@ export function createGrokAdapter(deps) {
         return false;
       };
 
-      // Poll for send confirmation — Grok's UI can take a moment to update.
-      // We must NOT proceed to the next send strategy until we're sure the
-      // current one didn't work, otherwise we'll send a second empty message.
       const waitForConfirm = async (maxMs = 2000) => {
         const interval = 100;
         const maxAttempts = Math.ceil(maxMs / interval);
@@ -394,40 +379,54 @@ export function createGrokAdapter(deps) {
         return false;
       };
 
-      if (!btn) {
-        throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
-      }
+      const tryKeySend = async () => {
+        if (!target) return false;
+        target.focus();
+        const attempts = [
+          { ctrlKey: false, metaKey: false, tag: 'enter' },
+          { ctrlKey: true, metaKey: false, tag: 'ctrl-enter' },
+          { ctrlKey: false, metaKey: true, tag: 'meta-enter' }
+        ];
+        for (const attempt of attempts) {
+          const kOpts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true, composed: true, ctrlKey: attempt.ctrlKey, metaKey: attempt.metaKey };
+          target.dispatchEvent(new KeyboardEvent('keydown', kOpts));
+          target.dispatchEvent(new KeyboardEvent('keypress', kOpts));
+          target.dispatchEvent(new KeyboardEvent('keyup', kOpts));
+          await sleep(220);
+          sendTrace.keyAttempts.push(attempt.tag);
+          if (confirmSendCheck()) return true;
+          logger?.debug('grok-send-key-no-change', { mode: attempt.tag });
+        }
+        return false;
+      };
 
-      // Only try ONE send method. If click works, do NOT continue to form/Enter.
-      triggerClick(btn);
-      sendTrace.clicked = true;
-      if (await waitForConfirm(2500)) return true;
-      logger?.debug('grok-send-click-no-confirm');
-
-      // Only try form submit if click truly failed
-      const form = target?.closest?.('form');
-      if (form) {
+      const tryFormSubmit = async () => {
+        const form = target?.closest?.('form');
+        if (!form) return false;
         try {
           if (typeof form.requestSubmit === 'function') form.requestSubmit();
           else form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         } catch (_) {}
         sendTrace.formSubmitted = true;
-        if (await waitForConfirm(2000)) return true;
+        await sleep(220);
+        return confirmSendCheck();
+      };
+
+      if (btn) {
+        triggerClick(btn);
+        sendTrace.clicked = true;
+        await sleep(220);
+        if (confirmSendCheck()) return true;
+        logger?.debug('grok-send-click-no-confirm');
+        if (await tryFormSubmit()) return true;
+        if (await tryKeySend()) return true;
+        throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
       }
 
-      // Only try Enter as absolute last resort
-      target?.focus?.();
-      target?.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-        bubbles: true, cancelable: true, composed: true
-      }));
-      target?.dispatchEvent(new KeyboardEvent('keyup', {
-        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-        bubbles: true, cancelable: true, composed: true
-      }));
-      sendTrace.keyAttempts.push('enter');
-      if (await waitForConfirm(2000)) return true;
-
+      if (await tryKeySend()) return true;
+      pressEnterOn(target);
+      await sleep(180);
+      if (confirmSendCheck()) return true;
       throw new Error(`Grok发送未执行 matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(',') || 'none'}`);
     }
   };

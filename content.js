@@ -401,7 +401,7 @@
       setContentEditable,
       findSendBtnForPlatform: findSendBtnForPlatform2,
       findSendBtnHeuristically: findSendBtnHeuristically2,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       sleep,
       normalizeText,
       getContent
@@ -473,9 +473,9 @@
         const target = el || document.activeElement;
         if (target) {
           target.focus();
-          pressEnterOn(target);
+          pressEnterOn2(target);
         } else {
-          pressEnterOn(null);
+          pressEnterOn2(null);
         }
       }
     };
@@ -490,7 +490,7 @@
       setContentEditable,
       findSendBtnForPlatform: findSendBtnForPlatform2,
       findSendBtnHeuristically: findSendBtnHeuristically2,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     } = deps;
     return {
       name: "Claude",
@@ -518,7 +518,7 @@
         const input = el || document.activeElement;
         if (input) {
           input.focus();
-          pressEnterOn(input);
+          pressEnterOn2(input);
         }
       }
     };
@@ -534,7 +534,7 @@
       setContentEditable,
       findSendBtnForPlatform: findSendBtnForPlatform2,
       findSendBtnHeuristically: findSendBtnHeuristically2,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     } = deps;
     return {
       name: "DeepSeek",
@@ -552,7 +552,7 @@
         }
         if (el) {
           el.focus();
-          pressEnterOn(el);
+          pressEnterOn2(el);
         }
       }
     };
@@ -568,7 +568,7 @@
       setContentEditable,
       findSendBtnForPlatform: findSendBtnForPlatform2,
       findSendBtnHeuristically: findSendBtnHeuristically2,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     } = deps;
     return {
       name: "Mistral",
@@ -585,7 +585,7 @@
         }
         if (el) {
           el.focus();
-          pressEnterOn(el);
+          pressEnterOn2(el);
         }
       }
     };
@@ -601,7 +601,7 @@
       sleep,
       normalizeText,
       getContent,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       findSendBtnForPlatform: findSendBtnForPlatform2
     } = deps;
     return {
@@ -616,7 +616,7 @@
           const target = el || document.activeElement;
           if (!target) return false;
           target.focus();
-          pressEnterOn(target);
+          pressEnterOn2(target);
           await sleep(220);
           let after = normalizeText(getContent(target));
           if (!before || after !== before) return true;
@@ -827,40 +827,25 @@
         if (el.tagName === "TEXTAREA") {
           el.focus();
           await sleep(20);
-          const fiberKey = Object.keys(el).find(
-            (k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$")
-          );
-          if (fiberKey) {
-            try {
-              let fiber = el[fiberKey];
-              for (let i = 0; i < 20 && fiber; i++) {
-                const onChange = fiber.memoizedProps?.onChange || fiber.pendingProps?.onChange;
-                if (typeof onChange === "function") {
-                  const nativeSetter = Object.getOwnPropertyDescriptor(
-                    window.HTMLTextAreaElement.prototype,
-                    "value"
-                  )?.set;
-                  if (nativeSetter) nativeSetter.call(el, text);
-                  else el.value = text;
-                  const tracker = el._valueTracker;
-                  if (tracker) tracker.setValue("");
-                  onChange({ target: el, currentTarget: el, type: "change", bubbles: true });
-                  el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-                  el.dispatchEvent(new Event("change", { bubbles: true }));
-                  await sleep(80);
-                  if (normalizeText(getContent(el)) === normalizeText(text)) {
-                    return { strategy: "grok-react-fiber", fallbackUsed: false };
-                  }
-                  break;
-                }
-                fiber = fiber.return;
-              }
-            } catch (_) {
-            }
-          }
+          el.select();
+          el.dispatchEvent(new KeyboardEvent("keydown", { key: "a", code: "KeyA", ctrlKey: true, bubbles: true, cancelable: true }));
+          el.dispatchEvent(new KeyboardEvent("keyup", { key: "a", code: "KeyA", ctrlKey: true, bubbles: true }));
+          el.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", code: "Delete", bubbles: true, cancelable: true }));
+          el.dispatchEvent(new KeyboardEvent("keyup", { key: "Delete", code: "Delete", bubbles: true }));
+          await sleep(16);
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+          if (nativeSetter) nativeSetter.call(el, text);
+          else el.value = text;
+          const tracker = el._valueTracker;
+          if (tracker) tracker.setValue("");
+          el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          await sleep(60);
+          if (await verifyAfterFlush(200)) return { strategy: "grok-react-value", fallbackUsed: false };
           setReactValue(el, text);
           await sleep(80);
-          return { strategy: "grok-react-value", fallbackUsed: false };
+          if (await verifyAfterFlush(200)) return { strategy: "grok-react-value-retry", fallbackUsed: true };
+          throw new Error("Grok textarea \u6CE8\u5165\u5931\u8D25");
         }
         try {
           if (await tryPasteEvent()) return { strategy: "grok-paste-event", fallbackUsed: false };
@@ -1032,44 +1017,52 @@
           }
           return false;
         };
-        if (!btn) {
-          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
-        }
-        triggerClick(btn);
-        sendTrace.clicked = true;
-        if (await waitForConfirm(2500)) return true;
-        logger?.debug("grok-send-click-no-confirm");
-        const form = target?.closest?.("form");
-        if (form) {
+        const tryKeySend = async () => {
+          if (!target) return false;
+          target.focus();
+          const attempts = [
+            { ctrlKey: false, metaKey: false, tag: "enter" },
+            { ctrlKey: true, metaKey: false, tag: "ctrl-enter" },
+            { ctrlKey: false, metaKey: true, tag: "meta-enter" }
+          ];
+          for (const attempt of attempts) {
+            const kOpts = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true, composed: true, ctrlKey: attempt.ctrlKey, metaKey: attempt.metaKey };
+            target.dispatchEvent(new KeyboardEvent("keydown", kOpts));
+            target.dispatchEvent(new KeyboardEvent("keypress", kOpts));
+            target.dispatchEvent(new KeyboardEvent("keyup", kOpts));
+            await sleep(220);
+            sendTrace.keyAttempts.push(attempt.tag);
+            if (confirmSendCheck()) return true;
+            logger?.debug("grok-send-key-no-change", { mode: attempt.tag });
+          }
+          return false;
+        };
+        const tryFormSubmit = async () => {
+          const form = target?.closest?.("form");
+          if (!form) return false;
           try {
             if (typeof form.requestSubmit === "function") form.requestSubmit();
             else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
           } catch (_) {
           }
           sendTrace.formSubmitted = true;
-          if (await waitForConfirm(2e3)) return true;
+          await sleep(220);
+          return confirmSendCheck();
+        };
+        if (btn) {
+          triggerClick(btn);
+          sendTrace.clicked = true;
+          await sleep(220);
+          if (confirmSendCheck()) return true;
+          logger?.debug("grok-send-click-no-confirm");
+          if (await tryFormSubmit()) return true;
+          if (await tryKeySend()) return true;
+          throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
         }
-        target?.focus?.();
-        target?.dispatchEvent(new KeyboardEvent("keydown", {
-          key: "Enter",
-          code: "Enter",
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }));
-        target?.dispatchEvent(new KeyboardEvent("keyup", {
-          key: "Enter",
-          code: "Enter",
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }));
-        sendTrace.keyAttempts.push("enter");
-        if (await waitForConfirm(2e3)) return true;
+        if (await tryKeySend()) return true;
+        pressEnterOn(target);
+        await sleep(180);
+        if (confirmSendCheck()) return true;
         throw new Error(`Grok\u53D1\u9001\u672A\u6267\u884C matched=${sendTrace.matchedBy} clicked=${sendTrace.clicked} form=${sendTrace.formSubmitted} keys=${sendTrace.keyAttempts.join(",") || "none"}`);
       }
     };
@@ -1085,7 +1078,7 @@
       setContentEditable,
       findSendBtnForPlatform: findSendBtnForPlatform2,
       findSendBtnHeuristically: findSendBtnHeuristically2,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       isDoubaoVerificationPage
     } = deps;
     return {
@@ -1115,7 +1108,7 @@
         }
         if (el) {
           el.focus();
-          pressEnterOn(el);
+          pressEnterOn2(el);
         }
       }
     };
@@ -1694,7 +1687,7 @@
         return (el.value || "").trim();
       }
       return (el.innerText || el.textContent || "").trim();
-    }, pressEnterOn = function(el) {
+    }, pressEnterOn2 = function(el) {
       const target = el || document.activeElement;
       if (!target) return;
       const opts = {
@@ -2055,7 +2048,7 @@
       if (btn) btn.click();
       else {
         el?.focus();
-        pressEnterOn(el);
+        pressEnterOn2(el);
       }
     };
     const kimiSend = async (el) => {
@@ -2077,7 +2070,7 @@
       if (btn) btn.click();
       else {
         el?.focus();
-        pressEnterOn(el);
+        pressEnterOn2(el);
       }
     };
     const yuanbaoSend = async (el, options) => {
@@ -2115,7 +2108,7 @@
         if (!before || after !== before) return true;
       }
       el?.focus();
-      pressEnterOn(el);
+      pressEnterOn2(el);
       await sleep(220);
       const finalAfter = normalizeText(getContent(el));
       const sent = !before || finalAfter !== before;
@@ -2130,7 +2123,7 @@
       setContentEditable,
       findSendBtnForPlatform,
       findSendBtnHeuristically,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       sleep,
       normalizeText,
       getContent
@@ -2142,7 +2135,7 @@
       setContentEditable,
       findSendBtnForPlatform,
       findSendBtnHeuristically,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     });
     const deepseekAdapter = createDeepseekAdapter({
       findInputForPlatform,
@@ -2152,7 +2145,7 @@
       setContentEditable,
       findSendBtnForPlatform,
       findSendBtnHeuristically,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     });
     const geminiAdapter = createGeminiAdapter({
       findInputForPlatform,
@@ -2162,7 +2155,7 @@
       sleep,
       normalizeText,
       getContent,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       findSendBtnForPlatform
     });
     const grokAdapter = createGrokAdapter({
@@ -2174,7 +2167,7 @@
       normalizeText,
       getContent,
       sleep,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       isNodeDisabled
     });
     const mistralAdapter = createMistralAdapter({
@@ -2185,7 +2178,7 @@
       setContentEditable,
       findSendBtnForPlatform,
       findSendBtnHeuristically,
-      pressEnterOn
+      pressEnterOn: pressEnterOn2
     });
     const doubaoAdapter = createDoubaoAdapter({
       findInputForPlatform,
@@ -2195,7 +2188,7 @@
       setContentEditable,
       findSendBtnForPlatform,
       findSendBtnHeuristically,
-      pressEnterOn,
+      pressEnterOn: pressEnterOn2,
       isDoubaoVerificationPage
     });
     const qianwenAdapter = createQianwenAdapter({

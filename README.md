@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-16 19:16 | v2.23.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js` <!-- auto:6e862092c367 -->
 - 2026-03-16 19:07 | v2.22.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js` <!-- auto:5618504c241c -->
 - 2026-03-16 18:54 | v2.21.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js` <!-- auto:3ed611681bc6 -->
 - 2026-03-16 18:39 | v2.20.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/core/injection.js` <!-- auto:4b6e9f6695ed -->
@@ -37,7 +38,6 @@
 - 2026-03-16 16:29 | v2.14.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:91dd9c02ddff -->
 - 2026-03-16 16:17 | v2.13.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:94b213bc4cd6 -->
 - 2026-03-16 16:16 | v2.12.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:5066b88d3d85 -->
-- 2026-03-16 15:03 | v2.11.9 (PATCH) | Core | `selectors.json`, `src/content/selectors.js` <!-- auto:35e816541370 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
