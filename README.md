@@ -1,8 +1,8 @@
 # Sendol
 
-**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, Grok, DeepSeek, Qianwen, Kimi, Doubao, and Mistral.
+**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, DeepSeek, Kimi, Doubao, Yuanbao, and Mistral.
 
-**一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、Grok、DeepSeek、千问、Kimi、豆包、Mistral，专为重度 AI 用户与效率极客设计。
+**一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、DeepSeek、Kimi、豆包、元宝、Mistral，专为重度 AI 用户与效率极客设计。
 
 <!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
 <img src="assets/hero-earth.png" alt="Sendol — Multi-screen Sync" width="800" />
@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-16 22:16 | v2.29.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4c5d55d3dec -->
 - 2026-03-16 20:13 | v2.29.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js`, `src/content/selectors.js` <!-- auto:0272220a197d -->
 - 2026-03-16 20:04 | v2.28.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/adapters/grok.js`, `src/content/core/injection.js` <!-- auto:d65b2156d711 -->
 - 2026-03-16 19:56 | v2.27.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/adapters/grok.js`, `src/content/core/injection.js` <!-- auto:05c89ee01de4 -->
@@ -37,7 +38,6 @@
 - 2026-03-16 18:54 | v2.21.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js` <!-- auto:3ed611681bc6 -->
 - 2026-03-16 18:39 | v2.20.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/core/injection.js` <!-- auto:4b6e9f6695ed -->
 - 2026-03-16 18:30 | v2.19.0 (MINOR) | Content Script / Core | `content.js`, `src/content/core/injection.js` <!-- auto:4a015183fa49 -->
-- 2026-03-16 18:13 | v2.18.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/adapters/grok.js`, `src/content/core/injection.js`, `src/content/index.js`, `src/content/selectors.js` <!-- auto:a7e60ddd1feb -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
@@ -48,11 +48,9 @@
 | ChatGPT (OpenAI) | chatgpt.com, chat.openai.com |
 | Claude (Anthropic) | claude.ai |
 | Gemini (Google) | gemini.google.com |
-| Grok (xAI) | grok.com |
 | DeepSeek | chat.deepseek.com |
 | Mistral | chat.mistral.ai |
 | 豆包 Doubao (字节跳动) | www.doubao.com |
-| 通义千问 Qianwen (阿里云) | www.qianwen.com, tongyi.aliyun.com |
 | 元宝 Yuanbao (腾讯) | yuanbao.tencent.com |
 | Kimi (月之暗面) | kimi.com, kimi.moonshot.cn, kimi.ai |
 

@@ -131,11 +131,6 @@ function PlatformLogos() {
     "M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"
   ];
 
-  const grokPaths = [
-    "M13.2371 21.0407L24.3186 12.8506C24.8619 12.4491 25.6384 12.6057 25.8973 13.2294C27.2597 16.5185 26.651 20.4712 23.9403 23.1851C21.2297 25.8989 17.4581 26.4941 14.0108 25.1386L10.2449 26.8843C15.6463 30.5806 22.2053 29.6665 26.304 25.5601C29.5551 22.3051 30.562 17.8683 29.6205 13.8673L29.629 13.8758C28.2637 7.99809 29.9647 5.64871 33.449 0.844576C33.5314 0.730667 33.6139 0.616757 33.6964 0.5L29.1113 5.09055V5.07631L13.2343 21.0436",
-    "M10.9503 23.0313C7.0734 19.3235 7.7418 13.5853 11.0498 10.2763C13.4959 7.82722 17.5036 6.82767 21.0021 8.2971L24.7595 6.55998C24.0826 6.07017 23.215 5.54334 22.2195 5.17313C17.7198 3.31926 12.3326 4.24192 8.6747 7.90126C5.1563 11.4239 4.0499 16.8403 5.9499 21.4622C7.3692 24.9165 5.0425 27.3598 2.6988 29.826C1.8682 30.7002 1.0349 31.5745 0.3636 32.5L10.9474 23.0341"
-  ];
-
   return (
     <div className="mt-1 flex flex-wrap gap-x-1 gap-y-2">
       <div className="flex flex-wrap items-center [&>*:nth-child(n+2)]:-ml-1.5">
@@ -150,22 +145,12 @@ function PlatformLogos() {
             </svg>
           </div>
         ))}
-        {/* Grok Logo */}
-        <div
-          className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-muted text-foreground ring-1 ring-border/20"
-          style={{ zIndex: 1 }}
-        >
-          <svg className="h-[15px] w-[15px]" viewBox="0 0 34 33" fill="currentColor">
-            <path d={grokPaths[0]} />
-            <path d={grokPaths[1]} />
-          </svg>
-        </div>
-        {/* "9+" counter */}
+        {/* "5+" counter */}
         <div
           className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-background text-foreground ring-1 ring-border/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]"
           style={{ zIndex: 0 }}
         >
-          <span className="text-[10px] font-bold tracking-tighter">9+</span>
+          <span className="text-[10px] font-bold tracking-tighter">5+</span>
         </div>
       </div>
     </div>
