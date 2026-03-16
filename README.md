@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-16 16:29 | v2.14.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:91dd9c02ddff -->
 - 2026-03-16 16:17 | v2.13.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:94b213bc4cd6 -->
 - 2026-03-16 16:16 | v2.12.0 (MINOR) | Popup UI | `app/src/popup/Popup.jsx` <!-- auto:5066b88d3d85 -->
 - 2026-03-16 15:03 | v2.11.9 (PATCH) | Core | `selectors.json`, `src/content/selectors.js` <!-- auto:35e816541370 -->
@@ -37,7 +38,6 @@
 - 2026-03-13 16:04 | v2.11.3 (PATCH) | Tooling | `scripts/discover-selectors.mjs`, `scripts/test-input-support.mjs` <!-- auto:2b626a9fd634 -->
 - 2026-03-13 15:55 | v2.11.2 (PATCH) | Tooling | `scripts/discover-selectors.mjs`, `scripts/test-input-support.mjs` <!-- auto:46ff3d6d992f -->
 - 2026-03-13 15:43 | v2.11.1 (PATCH) | Tooling | `scripts/export-auth-state.mjs` <!-- auto:ddf4b54df87c -->
-- 2026-03-13 15:33 | v2.11.0 (MINOR) | Core / Popup UI / Background / Content Script / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/retry-failed.yml`, `.gitignore`, `app/src/popup/Popup.jsx`, `background.js`, `content.js`, +9 <!-- auto:faf365cd50c7 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

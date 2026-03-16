@@ -1,7 +1,6 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Button } from '@/components/ui/button'
-import { RefreshCw, ArrowUp, Check, ImagePlus, X, Zap, MessageSquarePlus } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus } from 'lucide-react'
 import { t } from '@/lib/i18n'
 import {
   clearDraftFromStorage,
@@ -775,33 +774,11 @@ export default function Popup() {
               onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={handleKeyDown}
             />
-            {imageData && (
-              <div className="flex items-center gap-2 px-3 pb-2">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-gray-200 dark:ring-zinc-600">
-                  <img src={imageData.preview} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black dark:bg-white/70 dark:text-black dark:hover:bg-white"
-                  >
-                    <X className="h-2.5 w-2.5" strokeWidth={3} />
-                  </button>
-                </div>
-                <span className="text-[11px] text-gray-500 dark:text-gray-400">{t('image_attached')}</span>
-              </div>
-            )}
             {hasText && (
               <div className="px-3 pb-1 text-[10px] text-gray-500 dark:text-zinc-400">
                 发送字数: {messageCharCount} · 预览: {messagePreview}{messageCharCount > 40 ? '…' : ''}
               </div>
             )}
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImagePick}
-            />
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
                 <button
@@ -814,7 +791,7 @@ export default function Popup() {
                   title={t('auto_send')}
                   className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
                     autoSend
-                      ? 'bg-blue-100 text-blue-600 px-2.5 py-1.5 dark:bg-blue-500/25 dark:text-blue-400'
+                      ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
                       : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
                   }`}
                 >
@@ -831,7 +808,7 @@ export default function Popup() {
                   title={t('new_chat')}
                   className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
                     newChat
-                      ? 'bg-blue-100 text-blue-600 px-2.5 py-1.5 dark:bg-blue-500/25 dark:text-blue-400'
+                      ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
                       : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
                   }`}
                 >
@@ -840,20 +817,6 @@ export default function Popup() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!imageEnabled}
-                  onClick={() => imageInputRef.current?.click()}
-                  title={t('image_unsupported_platforms')}
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                    imageEnabled
-                      ? 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-600 dark:hover:bg-zinc-700'
-                      : 'bg-gray-100 text-gray-400 ring-1 ring-gray-200 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500 dark:ring-zinc-600'
-                  }`}
-                >
-                  <ImagePlus className="h-3.5 w-3.5" />
-                </button>
-
                 <button
                   type="button"
                   disabled={sendDisabled}
@@ -880,22 +843,6 @@ export default function Popup() {
           </div>
         </div>
 
-        {showImageConfirm && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
-            <div className="w-full max-w-[300px] rounded-2xl border border-gray-200 bg-zinc-50 p-4 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.35)] dark:border-zinc-600 dark:bg-zinc-800 dark:shadow-[0_14px_34px_-14px_rgba(0,0,0,0.7)]">
-              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{t('image_confirm_title')}</p>
-              <p className="mt-2 text-[12px] leading-relaxed text-gray-600 dark:text-zinc-300">{t('image_confirm_body')}</p>
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={handleCancelSend}>
-                  {t('image_confirm_cancel')}
-                </Button>
-                <Button variant="default" size="sm" onClick={handleConfirmSend}>
-                  {t('image_confirm_send')}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
