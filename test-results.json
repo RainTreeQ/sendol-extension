@@ -1,12 +1,11 @@
 {
-  "timestamp": "2026-03-11T11:35:07.944Z",
-  "total": 9,
-  "passed": 7,
-  "failed": 1,
-  "loadErrors": 1,
-  "failedPlatforms": [
-    "deepseek"
-  ],
+  "timestamp": "2026-03-13T07:59:29.464Z",
+  "total": 10,
+  "passed": 8,
+  "authRequired": 2,
+  "failed": 0,
+  "loadErrors": 0,
+  "failedPlatforms": [],
   "results": [
     {
       "id": "chatgpt",
@@ -16,6 +15,7 @@
       "selector": "#prompt-textarea",
       "tag": "div",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
@@ -26,7 +26,8 @@
       "selector": null,
       "tag": null,
       "visible": false,
-      "note": "加载失败: page.goto: net::ERR_CONNECTION_CLOSED at https://claude.ai/\nCall log:\n  - naviga"
+      "status": "auth_required",
+      "note": "需要登录后才能检测输入框（正常）"
     },
     {
       "id": "gemini",
@@ -36,6 +37,7 @@
       "selector": ".ql-editor[contenteditable=\"true\"]",
       "tag": "div",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
@@ -46,17 +48,19 @@
       "selector": "textarea[placeholder]",
       "tag": "textarea",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
       "id": "deepseek",
       "name": "DeepSeek",
-      "url": "https://www.deepseek.com/",
+      "url": "https://chat.deepseek.com/",
       "found": false,
       "selector": null,
       "tag": null,
       "visible": false,
-      "note": "可能未登录或页面结构已变更"
+      "status": "auth_required",
+      "note": "需要登录后才能检测输入框（正常）"
     },
     {
       "id": "doubao",
@@ -66,6 +70,7 @@
       "selector": "textarea[placeholder]",
       "tag": "textarea",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
@@ -76,6 +81,7 @@
       "selector": "div[data-slate-editor=\"true\"][contenteditable=\"true\"]",
       "tag": "div",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
@@ -86,6 +92,7 @@
       "selector": ".ql-editor[contenteditable=\"true\"]",
       "tag": "div",
       "visible": true,
+      "status": "pass",
       "note": ""
     },
     {
@@ -93,10 +100,22 @@
       "name": "Kimi",
       "url": "https://www.kimi.com/",
       "found": true,
-      "selector": "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "selector": "div.chat-input-editor[contenteditable=\"true\"]",
       "tag": "div",
       "visible": true,
+      "status": "pass",
       "note": ""
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral",
+      "url": "https://chat.mistral.ai/",
+      "found": true,
+      "selector": "textarea",
+      "tag": "textarea",
+      "visible": false,
+      "status": "pass",
+      "note": "元素存在但可能不可见"
     }
   ]
 }

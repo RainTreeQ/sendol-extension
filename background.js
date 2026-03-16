@@ -9,7 +9,7 @@ async function updateDynamicSelectors() {
     const data = await res.json();
     await chrome.storage.local.set({ [CACHE_KEY]: { data, timestamp: Date.now() } });
   } catch (err) {
-    console.warn("[AIB] Failed to fetch dynamic selectors:", err);
+    console.debug("[AIB] Failed to fetch dynamic selectors:", err);
   }
 }
 
@@ -20,7 +20,7 @@ if (chrome.alarms?.create && chrome.alarms?.onAlarm?.addListener) {
       if (alarm.name === "updateSelectors") updateDynamicSelectors();
     });
   } catch (err) {
-    console.warn("[AIB] Failed to init alarms:", err);
+    console.debug("[AIB] Failed to init alarms:", err);
   }
 }
 
@@ -33,7 +33,7 @@ chrome.runtime.onInstalled.addListener(() => {
 try {
   importScripts('shared/platform-registry.js');
 } catch (err) {
-  console.warn('[AIB][background] shared registry load failed', err);
+  console.debug('[AIB][background] shared registry load failed', err);
 }
 
 const AIB_SHARED = globalThis.__AIB_SHARED__ || null;
@@ -142,6 +142,7 @@ function createLogger(scope, requestId, debug) {
   const prefix = `[AIB][${scope}][${requestId}]`;
   return {
     info(event, data = undefined) {
+      if (!debug) return;
       if (data === undefined) console.log(`${prefix} ${event}`);
       else console.log(`${prefix} ${event}`, data);
     },
@@ -282,7 +283,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (Object.keys(patch).length > 0) {
     await chrome.storage.local.set(patch);
   }
-  console.log('Sendol extension installed');
+  if (existing.debugLogs === true) console.log('Sendol extension installed');
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1326,7 +1327,7 @@ if (chrome.windows.onBoundsChanged) {
           await chrome.storage.local.set({ [POPUP_BOUNDS_KEY]: newBounds });
         }
       } catch (err) {
-        console.warn('[AIB] Failed to save window bounds:', err);
+        console.debug('[AIB] Failed to save window bounds:', err);
       }
     }, 500);
   });

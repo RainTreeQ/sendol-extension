@@ -219,11 +219,19 @@
       findInput: [
         'div[data-slate-editor="true"][contenteditable="true"]',
         'div[contenteditable="true"][role="textbox"]',
+        "textarea.message-input-textarea",
         'div[contenteditable="true"]',
         "textarea[placeholder]",
         "textarea"
       ],
-      findSendBtn: []
+      findSendBtn: [
+        '[data-icon-type="qwpcicon-sendChat"]',
+        'div[class*="operatebtn"]:not([class*="disabled"])',
+        "div.message-input-right-button-send button",
+        "div.message-input-right-button-send",
+        'button[aria-label*="\u53D1\u9001"]',
+        'button[aria-label*="Send"]'
+      ]
     },
     yuanbao: {
       findInput: [
@@ -232,7 +240,14 @@
         'div[contenteditable="true"]',
         "textarea"
       ],
-      findSendBtn: []
+      findSendBtn: [
+        "a#yuanbao-send-btn",
+        'a[id*="send-btn"]',
+        "span.icon-send",
+        '[class*="send-btn"]:not([class*="disabled"])',
+        'button[aria-label*="\u53D1\u9001"]',
+        'button[aria-label*="Send"]'
+      ]
     },
     kimi: {
       findInput: [
@@ -1456,6 +1471,7 @@
       const prefix = `[AIB][content][${requestId}]`;
       return {
         info(event, data = void 0) {
+          if (!debug) return;
           if (data === void 0) console.log(`${prefix} ${event}`);
           else console.log(`${prefix} ${event} | ${formatLogData(data)}`);
         },

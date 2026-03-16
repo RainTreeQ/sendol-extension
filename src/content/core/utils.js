@@ -89,6 +89,7 @@ export function createLogger(requestId, debug) {
   const prefix = `[AIB][content][${requestId}]`;
   return {
     info(event, data = undefined) {
+      if (!debug) return;
       if (data === undefined) console.log(`${prefix} ${event}`);
       else console.log(`${prefix} ${event}`, data);
     },
