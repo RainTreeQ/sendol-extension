@@ -124,7 +124,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'auto-fix-selectors.yml',
-              ref: 'main',
+              ref: 'master',
               inputs: {
                 failed_platforms: '${{ steps.retest.outputs.failed_platforms }}'
               }
