@@ -48,7 +48,7 @@ const PLATFORM_STYLES = {
   Unknown: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
 }
 
-const HIDDEN_PLATFORMS = new Set(['Grok', 'Qianwen'])
+const HIDDEN_PLATFORMS = new Set(['Grok', 'Qianwen', 'Mistral'])
 const PRIMARY_PLATFORMS = ['ChatGPT', 'Gemini', 'Claude']
 const PRIMARY_PLATFORM_SET = new Set(PRIMARY_PLATFORMS)
 const PRIMARY_PLATFORM_PRIORITY = new Map(PRIMARY_PLATFORMS.map((name, index) => [name, index]))

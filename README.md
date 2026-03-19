@@ -1,8 +1,8 @@
 # Sendol
 
-**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, DeepSeek, Kimi, Doubao, Yuanbao, and Mistral.
+**Broadcast one message to all AI chat windows at once.** A Chrome/Edge extension for power users who juggle ChatGPT, Claude, Gemini, DeepSeek, Kimi, Doubao, and Yuanbao.
 
-**一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、DeepSeek、Kimi、豆包、元宝、Mistral，专为重度 AI 用户与效率极客设计。
+**一键将同一条消息同步广播到所有 AI 会话窗口。** 支持 ChatGPT、Claude、Gemini、DeepSeek、Kimi、豆包、元宝，专为重度 AI 用户与效率极客设计。
 
 <!-- Use a fixed width to avoid GitHub scaling blur; source image is 1024px for Retina displays -->
 <img src="assets/hero-earth.png" alt="Sendol — Multi-screen Sync" width="800" />
@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-19 16:56 | v1.2.0 (MINOR) | Popup UI / Background / Manifest/Permissions / Tooling | `app/src/popup/Popup.jsx`, `background.js`, `manifest.json`, `scripts/build-content.mjs`, `scripts/discover-selectors.mjs`, `scripts/validate-selectors.mjs` <!-- auto:f102f013fcf6 -->
 - 2026-03-19 16:52 | v1.1.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:0fa25d290a90 -->
 - 2026-03-19 16:48 | v1.1.0 (MINOR) | Core | `app/src/components/ShapeGrid.jsx`, `app/src/components/landing/HeroShapeGrid.jsx`, `playwright-report/index.html`, `test-results/.last-run.json` <!-- auto:85bf8b1857a9 -->
 - 2026-03-19 16:41 | v2.33.0 (MINOR) | Core / Popup UI | `app/src/lib/i18n.js`, `app/src/popup/Popup.jsx` <!-- auto:9458254312f3 -->
@@ -37,7 +38,6 @@
 - 2026-03-19 16:01 | v2.31.2 (PATCH) | Core | `app/src/App.jsx`, `app/src/pages/Changelog.jsx`, `app/src/pages/Contact.jsx`, `app/src/pages/FAQ.jsx`, `app/src/pages/Install.jsx`, `app/src/pages/Privacy.jsx`, +1 <!-- auto:ea5159ddeb0f -->
 - 2026-03-19 15:56 | v2.31.1 (PATCH) | Core | `app/index.html`, `app/src/App.jsx`, `package.json`, `tests/site/playwright.config.js` <!-- auto:6fea298355d4 -->
 - 2026-03-18 16:15 | v2.31.0 (MINOR) | Core / Popup UI / Background / Content Script / Manifest/Permissions / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/code-quality.yml`, `.gitignore`, `app/src/lib/extension-storage.js`, `app/src/popup/Popup.jsx`, `background.js`, +46 <!-- auto:476bf0f87b3e -->
-- 2026-03-17 20:49 | v2.30.0 (MINOR) | Core / UI Components / Popup UI / Content Script | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/code-quality.yml`, `app/components.json`, `app/package-lock.json`, `app/package.json`, `app/src/components/ShapeGrid.jsx`, +17 <!-- auto:00b668edbb9a -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
@@ -49,7 +49,6 @@
 | Claude (Anthropic) | claude.ai |
 | Gemini (Google) | gemini.google.com |
 | DeepSeek | chat.deepseek.com |
-| Mistral | chat.mistral.ai |
 | 豆包 Doubao (字节跳动) | www.doubao.com |
 | 元宝 Yuanbao (腾讯) | yuanbao.tencent.com |
 | Kimi (月之暗面) | kimi.com, kimi.moonshot.cn, kimi.ai |

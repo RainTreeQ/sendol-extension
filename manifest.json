@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "default_locale": "en",
   "name": "__MSG_extName__",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "__MSG_extDescription__",
   "permissions": [
     "activeTab",
@@ -18,7 +18,6 @@
     "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://chat.mistral.ai/*",
     "https://grok.com/*",
     "https://*.deepseek.com/*",
     "https://*.doubao.com/*",
@@ -97,17 +96,6 @@
         "shared/platform-registry.js",
         "content-core.js",
         "content-deepseek.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://chat.mistral.ai/*"
-      ],
-      "js": [
-        "shared/platform-registry.js",
-        "content-core.js",
-        "content-mistral.js"
       ],
       "run_at": "document_idle"
     },

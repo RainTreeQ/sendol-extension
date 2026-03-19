@@ -15,7 +15,7 @@ const SELECTORS_DIR = join(ROOT, 'selectors');
 
 const REQUIRED_PLATFORMS = [
   'chatgpt', 'claude', 'gemini', 'grok', 'deepseek',
-  'doubao', 'qianwen', 'yuanbao', 'kimi', 'mistral'
+  'doubao', 'qianwen', 'yuanbao', 'kimi'
 ];
 
 function validateStructure() {

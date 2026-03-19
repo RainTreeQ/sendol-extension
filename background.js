@@ -3,7 +3,7 @@ const CACHE_KEY = "aib_dynamic_selectors";
 const CACHE_TTL = 12 * 60 * 60 * 1000;
 const SELECTOR_PLATFORMS = [
   'chatgpt', 'claude', 'gemini', 'grok', 'deepseek',
-  'mistral', 'doubao', 'qianwen', 'yuanbao', 'kimi'
+  'doubao', 'qianwen', 'yuanbao', 'kimi'
 ];
 async function updateDynamicSelectors() {
   try {
@@ -77,7 +77,6 @@ const FALLBACK_PLATFORM_DEFINITIONS = [
   { name: 'Gemini', domains: ['gemini.google.com'], newChatUrl: 'https://gemini.google.com/app' },
   { name: 'Grok', domains: ['grok.com'], newChatUrl: 'https://grok.com/' },
   { name: 'DeepSeek', domains: ['deepseek.com'], newChatUrl: 'https://chat.deepseek.com/' },
-  { name: 'Mistral', domains: ['chat.mistral.ai'], newChatUrl: null },
   { name: 'Doubao', domains: ['doubao.com'], newChatUrl: 'https://www.doubao.com/chat' },
   { name: 'Qianwen', domains: ['tongyi.aliyun.com', 'qianwen.com'], newChatUrl: 'https://www.qianwen.com/' },
   { name: 'Yuanbao', domains: ['yuanbao.tencent.com'], newChatUrl: 'https://yuanbao.tencent.com/chat' },
@@ -458,7 +457,6 @@ const GENERIC_TITLE_PATTERNS = {
   Gemini: [/^google gemini$/i, /^gemini$/i, /^new\s*chat$/i, /^gemini\s*[-–—|]/i, /[-–—|]\s*gemini$/i, /^gemini\s*[-–—|].*gemini$/i],
   Grok: [/^grok$/i, /^new chat$/i],
   DeepSeek: [/^deepseek$/i, /^new chat$/i],
-  Mistral: [/^mistral ai$/i, /^mistral$/i, /^new chat$/i],
   Doubao: [/^豆包$/i, /^doubao$/i, /^new chat$/i],
   Qianwen: [/^通义千问$/i, /^千问$/i, /^qianwen$/i, /^new chat$/i],
   Yuanbao: [/^元宝$/i, /^yuanbao$/i, /^new chat$/i],
@@ -625,7 +623,6 @@ async function probeConversationTitle(tabId, platformName) {
           Claude: ['nav a[aria-current="page"]', 'main h1'],
           Grok: ['nav a[aria-current="page"]', 'main h1'],
           DeepSeek: ['nav a[aria-current="page"]', 'main h1'],
-          Mistral: ['nav a[aria-current="page"]', 'main h1'],
           Doubao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
           Qianwen: ['nav a[aria-current="page"]', 'main h1', 'header h1'],
           Yuanbao: ['nav a[aria-current="page"]', 'main h1', 'header h1'],

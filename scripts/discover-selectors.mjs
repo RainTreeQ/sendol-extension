@@ -26,7 +26,6 @@ const PLATFORMS = {
   qianwen: { url: 'https://www.qianwen.com/', name: 'Qianwen' },
   yuanbao: { url: 'https://yuanbao.tencent.com/', name: 'Yuanbao' },
   kimi: { url: 'https://www.kimi.com/', name: 'Kimi' },
-  mistral: { url: 'https://chat.mistral.ai/', name: 'Mistral' },
 };
 
 async function isAuthGate(page) {

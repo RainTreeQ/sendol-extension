@@ -15,7 +15,7 @@ if (!existsSync(esbuildBin)) {
 
 const PLATFORMS = [
   'chatgpt', 'claude', 'gemini', 'grok', 'deepseek',
-  'mistral', 'doubao', 'qianwen', 'yuanbao', 'kimi'
+  'doubao', 'qianwen', 'yuanbao', 'kimi'
 ]
 
 const builds = [
