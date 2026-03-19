@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-19 16:36 | v2.32.1 (PATCH) | Core | `app/src/pages/FAQ.jsx` <!-- auto:eb1a2af22172 -->
 - 2026-03-19 16:27 | v2.32.0 (MINOR) | Core / UI Components | `app/src/components/layout/Hero.jsx`, `app/src/components/ui/accordion.jsx`, `app/src/pages/FAQ.jsx` <!-- auto:3ca83ea1d76b -->
 - 2026-03-19 16:18 | v2.31.5 (PATCH) | Core | `app/src/components/layout/Footer.jsx`, `app/src/components/layout/Header.jsx`, `app/src/components/layout/Hero.jsx` <!-- auto:36364b73a2ac -->
 - 2026-03-19 16:02 | v2.31.4 (PATCH) | Core | `package-lock.json`, `tests/site/code-quality.spec.js`, `tests/site/i18n.spec.js`, `tests/site/navigation.spec.js`, `tests/site/theme.spec.js` <!-- auto:c357cdd4b41b -->
@@ -37,7 +38,6 @@
 - 2026-03-16 22:16 | v2.29.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4c5d55d3dec -->
 - 2026-03-16 20:13 | v2.29.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js`, `src/content/selectors.js` <!-- auto:0272220a197d -->
 - 2026-03-16 20:04 | v2.28.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/adapters/grok.js`, `src/content/core/injection.js` <!-- auto:d65b2156d711 -->
-- 2026-03-16 19:56 | v2.27.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/chatgpt.js`, `src/content/adapters/grok.js`, `src/content/core/injection.js` <!-- auto:05c89ee01de4 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

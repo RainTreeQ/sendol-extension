@@ -13,8 +13,8 @@ const COPY = {
     a3: "No. Sendol runs entirely locally on your browser. We do not collect, store, or upload any of your prompts or AI responses.",
     q4: "Why does auto-send fail sometimes?",
     a4: "Some AI platforms employ risk-control measures that might block automated injections if done too quickly. Also, UI changes on their side may occasionally break the detection.",
-    q5: "Will it support Microsoft Copilot?",
-    a5: "No, Microsoft Copilot is intentionally out of scope in the current version."
+    q5: "Will it support more AI platforms?",
+    a5: "Yes, we plan to support some mainstream platforms in the future."
   },
   "zh-CN": {
     title: "常见问题",
@@ -26,8 +26,8 @@ const COPY = {
     a3: "不会。Sendol 完全在你的本地浏览器中运行。我们不收集、不存储、不上传你的任何提问或 AI 的回答。",
     q4: "为什么有时自动发送会失败？",
     a4: "部分 AI 平台有风控机制，可能会拦截过快的自动化输入。此外，平台界面改版也偶尔会导致插件失效。",
-    q5: "未来会支持 Microsoft Copilot 吗？",
-    a5: "不会，当前版本明确不支持 Microsoft Copilot。"
+    q5: "未来会支持更多的 AI 平台吗？",
+    a5: "是的，我们计划在未来支持一些主流平台。"
   }
 };
 
