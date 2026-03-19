@@ -509,7 +509,7 @@ function PlatformLogos() {
             className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-background bg-background text-foreground ring-1 ring-border/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_0_0_1px_rgba(255,255,255,0.05)]"
             style={{ zIndex: 0 }}
           >
-            <span className="text-[10px] font-bold tracking-tighter">{`+${remaining}`}</span>
+            <span className="text-[12px] font-bold tracking-tighter leading-none mb-1">...</span>
           </div>
         ) : null}
       </div>
@@ -524,6 +524,11 @@ export function Hero() {
   const { locale, plannedLocales, resolvedTheme } = useSiteSettings();
   const copy = COPY[locale] || COPY.en;
   const screenshotSrc = resolvedTheme === "dark" ? "/screenshot-dark.png" : "/screenshot-light.png";
+
+  const handleScrollTo = (e, id) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <section className="relative w-full overflow-hidden">
@@ -552,14 +557,12 @@ export function Hero() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button asChild size="lg">
-                <a href="#pricing">{copy.ctaPricing}</a>
+              <Button size="lg" onClick={(e) => handleScrollTo(e, "pricing")}>
+                {copy.ctaPricing}
               </Button>
-              <Button asChild variant="outline" size="lg">
-                <a href="#support">
-                  {copy.ctaSupport}
-                  <HandHeart className="h-4 w-4" />
-                </a>
+              <Button variant="outline" size="lg" onClick={(e) => handleScrollTo(e, "support")}>
+                {copy.ctaSupport}
+                <HandHeart className="h-4 w-4" />
               </Button>
               <Button asChild variant="ghost" size="lg">
                 <a href="https://github.com/RainTreeQ/sendol-extension#-installation--安装" target="_blank" rel="noreferrer">
@@ -592,7 +595,7 @@ export function Hero() {
           </div>
 
           <div className="flex justify-center lg:justify-end">
-            <div className="group relative max-w-[380px] overflow-hidden rounded-[24px] shadow-[0_30px_60px_-35px_rgba(0,0,0,0.65)] ring-1 ring-border/50 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_45px_75px_-30px_rgba(0,0,0,0.8)] hover:ring-border/80">
+            <div className="group relative max-w-[380px] overflow-hidden rounded-[24px] shadow-[0_30px_60px_-35px_rgba(0,0,0,0.65)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.08)] ring-1 ring-border/50 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_45px_75px_-30px_rgba(0,0,0,0.8)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.12)] hover:ring-border/80">
               {/* 微拟物：顶部光泽遮罩，悬浮时稍微加强 */}
               <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-white/10 to-transparent opacity-40 mix-blend-overlay transition-opacity duration-700 group-hover:opacity-70 dark:from-white/5" />
               <img
@@ -726,8 +729,8 @@ export function Hero() {
                       <ArrowUpRight className="h-4 w-4" />
                     </a>
                   </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href="#pricing">{copy.ctaPricing}</a>
+                  <Button variant="outline" size="sm" onClick={(e) => handleScrollTo(e, "pricing")}>
+                    {copy.ctaPricing}
                   </Button>
                 </div>
               </CardContent>

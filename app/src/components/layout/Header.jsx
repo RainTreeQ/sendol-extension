@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ChevronDown, Globe, Monitor, Moon, Sun } from "lucide-react";
 import { useSiteSettings } from "@/lib/site-settings";
@@ -26,6 +26,20 @@ function LogoIcon({ className }) {
  */
 export function Header() {
   const { locale, setLocale, supportedLocales, themeMode, setThemeMode } = useSiteSettings();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleScrollTo = (e, id) => {
+    e.preventDefault();
+    if (location.pathname === "/") {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
 
   const TRANSLATIONS = {
     "zh-CN": {
@@ -137,14 +151,14 @@ export function Header() {
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 hidden h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground sm:block" />
           </label>
 
-          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-            <Link to="/#pricing">{copy.pricing}</Link>
+          <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "pricing")}>
+            {copy.pricing}
           </Button>
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
             <Link to="/faq">{copy.faq}</Link>
           </Button>
-          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-            <Link to="/#support">{copy.support}</Link>
+          <Button variant="ghost" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "support")}>
+            {copy.support}
           </Button>
           <Button asChild variant="accent" size="sm" className="hidden sm:inline-flex">
             <a href="https://github.com/RainTreeQ/sendol-extension" target="_blank" rel="noreferrer">
@@ -152,8 +166,8 @@ export function Header() {
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </Button>
-          <Button asChild variant="default" size="sm" className="hidden md:inline-flex">
-            <a href="/#pricing">{copy.pro}</a>
+          <Button variant="default" size="sm" className="hidden md:inline-flex" onClick={(e) => handleScrollTo(e, "pricing")}>
+            {copy.pro}
           </Button>
         </nav>
       </div>

@@ -1,5 +1,5 @@
 import { Heart, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSiteSettings } from "@/lib/site-settings";
 
 /**
@@ -7,6 +7,21 @@ import { useSiteSettings } from "@/lib/site-settings";
  */
 export function Footer() {
   const { locale } = useSiteSettings();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleScrollTo = (e, id) => {
+    e.preventDefault();
+    if (location.pathname === "/") {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      navigate("/");
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
+
   const copy = locale === "zh-CN"
     ? {
       subtitle: "Sendol · 开源核心 + Pro 功能",
@@ -44,13 +59,13 @@ export function Footer() {
         </div>
         
         <nav aria-label={copy.footerNav} className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-3">
-          <Link to="/#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={(e) => handleScrollTo(e, "pricing")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.pricing}
-          </Link>
-          <Link to="/#support" className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          </button>
+          <button onClick={(e) => handleScrollTo(e, "support")} className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.support}
             <Heart className="h-3.5 w-3.5" />
-          </Link>
+          </button>
           <Link to="/install" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             {copy.install}
           </Link>
