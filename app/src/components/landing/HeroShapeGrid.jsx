@@ -41,14 +41,41 @@ export function HeroShapeGrid({ className }) {
 
   useEffect(() => {
     // Resolve token colors to rgb for canvas consistency (avoid color-mix/oklch parsing edge cases).
-    const nextBorder = resolveCssColorToRgb("color-mix(in oklab, var(--border) 92%, transparent)") || resolveCssColorToRgb("var(--border)");
-    const nextHover = resolveCssColorToRgb("color-mix(in oklab, var(--border) 88%, transparent)") || nextBorder;
-    if (nextBorder || nextHover) {
+    const updateColors = () => {
+      // 动态判断深浅色模式：浅色下我们用深一点点的透明色画网格，深色下用更浅的透明色。
+      const isDark = document.documentElement.classList.contains("dark");
+      
+      let nextBorder, nextHover;
+      
+      if (isDark) {
+        // Dark mode: very subtle light lines
+        nextBorder = resolveCssColorToRgb("color-mix(in oklab, var(--foreground) 6%, transparent)") || "rgba(255,255,255,0.06)";
+        nextHover = resolveCssColorToRgb("color-mix(in oklab, var(--foreground) 10%, transparent)") || "rgba(255,255,255,0.1)";
+      } else {
+        // Light mode: very subtle dark lines
+        nextBorder = resolveCssColorToRgb("color-mix(in oklab, var(--foreground) 4%, transparent)") || "rgba(0,0,0,0.04)";
+        nextHover = resolveCssColorToRgb("color-mix(in oklab, var(--foreground) 8%, transparent)") || "rgba(0,0,0,0.08)";
+      }
+
       setColors((prev) => ({
         border: nextBorder || prev.border,
         hover: nextHover || prev.hover,
       }));
-    }
+    };
+
+    updateColors();
+    
+    // 监听暗黑模式切换
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName === "class") {
+          updateColors();
+        }
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -88,12 +115,12 @@ export function HeroShapeGrid({ className }) {
       ].join(" ")}
     >
       <div className="absolute inset-0">
-        <div
+          <div
           className={[
             "absolute inset-0",
-            // Top-focused mask to keep text readable.
-            "[mask-image:radial-gradient(950px_560px_at_50%_8%,black_0%,black_52%,transparent_92%)]",
-            "opacity-95",
+            // 超平滑的渐隐：顶部清晰，向下非常柔和地过渡到完全透明（8%->60%->100%）。
+            "[mask-image:radial-gradient(1100px_700px_at_50%_0%,black_0%,rgba(0,0,0,0.5)_45%,transparent_85%)]",
+            "opacity-80",
             "translate-x-[var(--aib-grid-x)] translate-y-[var(--aib-grid-y)]",
             "transition-transform duration-700 ease-out",
           ].join(" ")}

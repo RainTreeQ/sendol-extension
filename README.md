@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-19 16:48 | v1.1.0 (MINOR) | Core | `app/src/components/ShapeGrid.jsx`, `app/src/components/landing/HeroShapeGrid.jsx`, `playwright-report/index.html`, `test-results/.last-run.json` <!-- auto:85bf8b1857a9 -->
 - 2026-03-19 16:41 | v2.33.0 (MINOR) | Core / Popup UI | `app/src/lib/i18n.js`, `app/src/popup/Popup.jsx` <!-- auto:9458254312f3 -->
 - 2026-03-19 16:36 | v2.32.1 (PATCH) | Core | `app/src/pages/FAQ.jsx` <!-- auto:eb1a2af22172 -->
 - 2026-03-19 16:27 | v2.32.0 (MINOR) | Core / UI Components | `app/src/components/layout/Hero.jsx`, `app/src/components/ui/accordion.jsx`, `app/src/pages/FAQ.jsx` <!-- auto:3ca83ea1d76b -->
@@ -37,7 +38,6 @@
 - 2026-03-18 16:15 | v2.31.0 (MINOR) | Core / Popup UI / Background / Content Script / Manifest/Permissions / Tooling | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/code-quality.yml`, `.gitignore`, `app/src/lib/extension-storage.js`, `app/src/popup/Popup.jsx`, `background.js`, +46 <!-- auto:476bf0f87b3e -->
 - 2026-03-17 20:49 | v2.30.0 (MINOR) | Core / UI Components / Popup UI / Content Script | `.github/workflows/auto-fix-selectors.yml`, `.github/workflows/code-quality.yml`, `app/components.json`, `app/package-lock.json`, `app/package.json`, `app/src/components/ShapeGrid.jsx`, +17 <!-- auto:00b668edbb9a -->
 - 2026-03-16 22:16 | v2.29.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4c5d55d3dec -->
-- 2026-03-16 20:13 | v2.29.0 (MINOR) | Content Script / Core | `content.js`, `src/content/adapters/grok.js`, `src/content/selectors.js` <!-- auto:0272220a197d -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---
