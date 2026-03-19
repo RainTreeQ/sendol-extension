@@ -565,10 +565,7 @@ export default function Popup() {
         addStatus(t('safe_mode_auto_send_blocked'), 'pending')
       }
 
-      const shouldClearDraft = results.length > 0 && (
-        successCount === results.length ||
-        (results.length >= 2 && successCount / results.length >= 0.5)
-      )
+      const shouldClearDraft = results.length > 0 && successCount > 0
       if (shouldClearDraft) {
         if (draftSaveTimerRef.current) {
           clearTimeout(draftSaveTimerRef.current)
@@ -708,7 +705,7 @@ export default function Popup() {
 
   const handleKeyDown = useCallback(
     (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         if (showImageConfirm) {
           handleConfirmSend()
@@ -786,8 +783,8 @@ export default function Popup() {
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleTab(tab.id))}
                     className={`group relative flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 ${
                       selected
-                        ? `bg-white shadow-sm ring-1 ${isPrimary ? 'ring-blue-300/80 dark:ring-blue-500/60' : 'ring-gray-200/90 dark:ring-zinc-600/55'} dark:bg-zinc-800`
-                        : `border border-transparent ${isPrimary ? 'hover:bg-blue-50/70 dark:hover:bg-blue-500/10' : 'hover:bg-gray-100 dark:hover:bg-zinc-800/50'}`
+                        ? 'bg-white shadow-sm ring-1 ring-gray-200/90 dark:ring-zinc-600/55 dark:bg-zinc-800'
+                        : 'border border-transparent hover:bg-gray-100 dark:hover:bg-zinc-800/50'
                     }`}
                   >
                     <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
@@ -845,7 +842,7 @@ export default function Popup() {
             <textarea
               ref={messageInputRef}
               className="min-h-[72px] w-full max-h-[160px] resize-none bg-transparent px-4 pt-3.5 text-[13px] leading-relaxed text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-zinc-500"
-              placeholder={t('message_placeholder')}
+              placeholder={t('message_placeholder_shift_enter')}
               rows={3}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
