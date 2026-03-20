@@ -1,10 +1,13 @@
+import { deepQuerySelectorAll } from './core/utils.js';
+
 export function findInputHeuristically() {
+  // 支持 Shadow DOM 的查询
   const candidates = [
-    ...document.querySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
-    ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
-    ...document.querySelectorAll('div[contenteditable="true"]'),
-    ...document.querySelectorAll('textarea[placeholder]'),
-    ...document.querySelectorAll('textarea')
+    ...deepQuerySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
+    ...deepQuerySelectorAll('div[contenteditable="true"][role="textbox"]'),
+    ...deepQuerySelectorAll('div[contenteditable="true"]'),
+    ...deepQuerySelectorAll('textarea[placeholder]'),
+    ...deepQuerySelectorAll('textarea')
   ];
 
   if (!candidates.length) return null;
@@ -73,10 +76,13 @@ export function findInputHeuristically() {
 export function findSendBtnHeuristically(el) {
   const container = el?.closest('form') || el?.closest('section') || el?.parentElement?.parentElement || document;
   const roots = [container, document].filter(Boolean);
-  
+
   for (const root of roots) {
     if (!root?.querySelectorAll) continue;
-    const nodes = root.querySelectorAll('button:not([disabled]), [role="button"]');
+    // 使用 deepQuerySelectorAll 支持 Shadow DOM
+    const nodes = root === document
+      ? deepQuerySelectorAll('button:not([disabled]), [role="button"]')
+      : root.querySelectorAll('button:not([disabled]), [role="button"]');
     for (const node of nodes) {
       if (node.disabled || node.getAttribute('aria-disabled') === 'true') continue;
       const klass = node.className?.toString() || '';

@@ -14,6 +14,7 @@ import { waitForElementByMutation } from './core/observer.js';
 import { createInjectionTools } from './core/injection.js';
 import { onCleanup } from './core/lifecycle.js';
 import { invalidate as invalidateDomCache } from './core/dom-cache.js';
+import { globalOperationLock, withRetry } from './core/utils.js';
 
 // Sendol - Content Script v7
 // Faster input path, structured timings, and guarded fallbacks
@@ -34,7 +35,7 @@ if (!window.__aiBroadcastLoaded) {
       return false;
     }
 
-    async function waitForSendReady(platformId, input, timeout = 260) {
+    async function waitForSendReady(platformId, input, timeout = 800) {
       if (!platformId) return false;
       const startedAt = now();
       while (now() - startedAt < timeout) {
@@ -42,7 +43,7 @@ if (!window.__aiBroadcastLoaded) {
         if (bySelector && !isNodeDisabled(bySelector)) return true;
         const heuristic = await findSendBtnHeuristically(input);
         if (heuristic && !isNodeDisabled(heuristic)) return true;
-        await sleep(20);
+        await sleep(40);
       }
       return false;
     }
@@ -1044,7 +1045,9 @@ if (!window.__aiBroadcastLoaded) {
           return true;
         }
 
-        (async () => {
+        // 使用操作锁防止并行注入冲突
+        const lockId = `inject:${platformId}:${requestId}`;
+        globalOperationLock.acquire(lockId, async () => {
           const timings = {
             findInputMs: 0,
             injectMs: 0,
@@ -1086,12 +1089,18 @@ if (!window.__aiBroadcastLoaded) {
 
             stage = 'inject';
             const injectStartedAt = now();
-            const injectMeta = await platform.inject(input, text, {
-              fastPathEnabled,
-              safeMode,
-              logger,
-              debug
-            });
+
+            // 使用重试机制执行注入
+            const injectMeta = await withRetry(
+              () => platform.inject(input, text, {
+                fastPathEnabled,
+                safeMode,
+                logger,
+                debug
+              }),
+              { maxRetries: 1, delay: 100 }
+            );
+
             timings.injectMs = now() - injectStartedAt;
             strategy = injectMeta?.strategy || strategy;
             fallbackUsed = Boolean(injectMeta?.fallbackUsed);
@@ -1156,7 +1165,7 @@ if (!window.__aiBroadcastLoaded) {
               debugLog: `inject | platform=${platform.name} | platformId=${platformId || 'unknown'} | stage=${failedStage} | error=${err.message} | strategy=${strategy} | fallback=${fallbackUsed} | textLen=${payloadLen} | inputLen=${inputLenAfterInject} | textHead=${payloadPreview} | ms=${timings.totalMs}`
             });
           }
-        })();
+        }, 45000); // 45秒超时
 
         return true;
       }

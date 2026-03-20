@@ -280,7 +280,7 @@ function main() {
 
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
   const currentVersion = manifest.version;
-  const nextVersion = bumpVersion(currentVersion, bumpLevel);
+  const nextVersion = process.env.FIXED_VERSION || bumpVersion(currentVersion, bumpLevel);
 
   writeVersionFiles(nextVersion);
   const readmeUpdated = updateReadmeEntry(meaningfulDiff.files, bumpLevel, nextVersion, fingerprint);

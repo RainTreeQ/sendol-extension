@@ -139,8 +139,15 @@ export const defaultSelectors = {
   },
   kimi: {
     findInput: [
+      // 现代编辑器框架检测（Slate/Lexical）
+      '[data-slate-editor="true"][contenteditable="true"]',
+      '[data-lexical-editor="true"][contenteditable="true"]',
+      // Kimi 特定选择器
       'div.chat-input-editor[contenteditable="true"]',
       'div[class*="chat-input-editor"][contenteditable="true"]',
+      '#chat-input[contenteditable="true"]',
+      '[data-testid*="input"][contenteditable="true"]',
+      'div[class*="editor"][contenteditable="true"][role="textbox"]',
       'textarea[placeholder]',
       'div[contenteditable="true"][role="textbox"]',
       'div[contenteditable="true"]',
@@ -151,12 +158,15 @@ export const defaultSelectors = {
       'div.send-button-container:not(.disabled)',
       '.send-button-container',
       'div[class*="send-button-container"]:not(.disabled)',
+      '[data-testid*="send"]',
+      'div[class*="send"][role="button"]',
       // 向下兼容：旧版可能有内部 button
       'div.send-button-container:not(.disabled) button',
       'div[class*="send-button-container"]:not(.disabled) button',
       // Fallback
       'button[class*="send"]:not([disabled])',
       'button[type="submit"]:not([disabled])',
+      'button[data-testid*="submit"]',
       'button[aria-label*="发送"]',
       'button[aria-label*="Send"]'
     ]
@@ -178,12 +188,24 @@ export const defaultSelectors = {
 };
 
 let cachedSelectors = null;
+let selectorsVersion = 0;
+let isFetchingSelectors = false;
+let pendingInvalidation = false;
 
 if (chrome.storage?.onChanged?.addListener) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'local') return;
     if (!changes || !changes.aib_dynamic_selectors) return;
+
+    // 如果正在获取选择器，标记待清除而不是立即清除
+    // 防止竞态条件：配置更新与正在进行的注入操作冲突
+    if (isFetchingSelectors) {
+      pendingInvalidation = true;
+      return;
+    }
+
     cachedSelectors = null;
+    selectorsVersion++;
     invalidate();
   });
 }
@@ -217,10 +239,26 @@ function mergeSelectors(localConfig, remoteConfig, mode) {
 }
 
 export async function getDynamicSelectors() {
-  if (cachedSelectors) return cachedSelectors;
+  // 如果缓存有效且没有待处理的失效请求，直接返回
+  if (cachedSelectors && !pendingInvalidation) {
+    return cachedSelectors;
+  }
+
+  // 标记正在获取选择器，防止 storage 监听器在此期间清除缓存
+  isFetchingSelectors = true;
+  const currentVersion = selectorsVersion;
+
   try {
     const store = await chrome.storage.local.get('aib_dynamic_selectors');
     const payload = store?.aib_dynamic_selectors?.data;
+
+    // 检查在此期间是否发生了配置更新
+    if (selectorsVersion !== currentVersion) {
+      // 配置已更新，需要重新获取
+      cachedSelectors = null;
+      pendingInvalidation = false;
+    }
+
     if (!payload || typeof payload !== 'object') {
       cachedSelectors = defaultSelectors;
       return cachedSelectors;
@@ -247,6 +285,16 @@ export async function getDynamicSelectors() {
     cachedSelectors = merged;
   } catch (err) {
     cachedSelectors = defaultSelectors;
+  } finally {
+    // 清除获取标志
+    isFetchingSelectors = false;
+
+    // 如果在此期间有配置更新请求，立即执行失效
+    if (pendingInvalidation) {
+      pendingInvalidation = false;
+      cachedSelectors = null;
+      invalidate();
+    }
   }
   return cachedSelectors;
 }

@@ -34,8 +34,31 @@ export function createGrokAdapter(deps) {
     async send(el, options) {
       const expected = normalizeText(options?.text || '');
 
-      const btn = await findSendBtnForPlatform('grok')
+      // 1. 优先使用选择器和启发式查找（最稳定）
+      let btn = await findSendBtnForPlatform('grok')
         || await waitFor(() => findSendBtnHeuristically(el), 3000, 40);
+
+      // 2. 尝试语义属性查找（不依赖布局）
+      if (!btn) {
+        btn = await waitFor(() => {
+          const selectors = [
+            '[data-testid="send-button"]',
+            '[data-testid*="send"]',
+            '[aria-label*="Send" i]',
+            '[aria-label*="发送" i]',
+            '[aria-label*="submit" i]',
+            '[title*="Send" i]',
+            'button[class*="send" i]'
+          ];
+          for (const sel of selectors) {
+            const found = document.querySelector(sel);
+            if (found && !found.disabled && found.getAttribute('aria-disabled') !== 'true') {
+              return found;
+            }
+          }
+          return null;
+        }, 2000, 40);
+      }
 
       if (btn) {
         if (el?.tagName === 'TEXTAREA' && expected) {
@@ -46,6 +69,7 @@ export function createGrokAdapter(deps) {
         return;
       }
 
+      // 3. 距离算法作为最后的 fallback
       const findNearbySendBtn = () => {
         if (!el?.getBoundingClientRect) return null;
         const rect = el.getBoundingClientRect();

@@ -280,7 +280,12 @@ if (!window.__aiBroadcastLoaded) {
 
           if (autoSend) {
             stage = 'send';
-            await waitForSendReady(platformId, input);
+            // Kimi 高频使用时按钮可能被延迟启用，缩短等待时间避免阻塞
+            const sendReadyTimeout = 400; // 400ms 等待按钮启用
+            const waitStart = now();
+            await waitForSendReady(platformId, input, sendReadyTimeout);
+            logger?.debug?.('kimi-send-ready-wait', { waitMs: now() - waitStart });
+            
             const sendStartedAt = now();
             const sendResult = await adapter.send(input, { logger, debug, text, safeMode });
             if (sendResult === false) {

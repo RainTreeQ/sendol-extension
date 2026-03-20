@@ -1,12 +1,65 @@
 (() => {
+  // src/content/core/utils.js
+  var OperationLock = class {
+    constructor() {
+      this.currentOperation = null;
+    }
+    async acquire(operationId, operation, timeout = 3e4) {
+      while (this.currentOperation) {
+        if (this.currentOperation.id === operationId) {
+          return this.currentOperation.promise;
+        }
+        await this.currentOperation.promise.catch(() => {
+        });
+      }
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Operation ${operationId} timed out`)), timeout);
+      });
+      const operationPromise = (async () => {
+        try {
+          return await operation();
+        } finally {
+          this.currentOperation = null;
+        }
+      })();
+      this.currentOperation = {
+        id: operationId,
+        promise: operationPromise,
+        startTime: Date.now()
+      };
+      try {
+        return await Promise.race([operationPromise, timeoutPromise]);
+      } catch (err) {
+        this.currentOperation = null;
+        throw err;
+      }
+    }
+    isBusy() {
+      return this.currentOperation !== null;
+    }
+  };
+  var globalOperationLock = new OperationLock();
+  function deepQuerySelectorAll(selector, root = document, maxDepth = 5) {
+    const results = [];
+    results.push(...root.querySelectorAll(selector));
+    if (maxDepth <= 0) return results;
+    const allElements = root.querySelectorAll("*");
+    for (const el of allElements) {
+      if (el.shadowRoot) {
+        results.push(...deepQuerySelectorAll(selector, el.shadowRoot, maxDepth - 1));
+      }
+    }
+    return results;
+  }
+
   // src/content/heuristics.js
   function findInputHeuristically() {
     const candidates = [
-      ...document.querySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
-      ...document.querySelectorAll('div[contenteditable="true"][role="textbox"]'),
-      ...document.querySelectorAll('div[contenteditable="true"]'),
-      ...document.querySelectorAll("textarea[placeholder]"),
-      ...document.querySelectorAll("textarea")
+      ...deepQuerySelectorAll('div[data-slate-editor="true"][contenteditable="true"]'),
+      ...deepQuerySelectorAll('div[contenteditable="true"][role="textbox"]'),
+      ...deepQuerySelectorAll('div[contenteditable="true"]'),
+      ...deepQuerySelectorAll("textarea[placeholder]"),
+      ...deepQuerySelectorAll("textarea")
     ];
     if (!candidates.length) return null;
     const unique = [];
@@ -67,7 +120,7 @@
     const roots = [container, document].filter(Boolean);
     for (const root of roots) {
       if (!root?.querySelectorAll) continue;
-      const nodes = root.querySelectorAll('button:not([disabled]), [role="button"]');
+      const nodes = root === document ? deepQuerySelectorAll('button:not([disabled]), [role="button"]') : root.querySelectorAll('button:not([disabled]), [role="button"]');
       for (const node of nodes) {
         if (node.disabled || node.getAttribute("aria-disabled") === "true") continue;
         const klass = node.className?.toString() || "";
@@ -87,18 +140,45 @@
   // src/content/core/dom-cache.js
   var cache = /* @__PURE__ */ new Map();
   var lastUrl = location.href;
+  var CACHE_TTL = 3e4;
+  var MAX_CACHE_SIZE = 20;
+  function isElementValid(node) {
+    if (!node || !(node instanceof HTMLElement)) return false;
+    if (!node.isConnected) return false;
+    try {
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden") return false;
+    } catch (_) {
+      return false;
+    }
+    return true;
+  }
+  function cleanupOldestEntries() {
+    if (cache.size <= MAX_CACHE_SIZE) return;
+    const entries = [...cache.entries()];
+    entries.sort((a, b) => a[1].cachedAt - b[1].cachedAt);
+    const toDelete = entries.slice(0, entries.length - MAX_CACHE_SIZE);
+    for (const [key] of toDelete) {
+      cache.delete(key);
+    }
+  }
   function getCached(key) {
     const entry = cache.get(key);
     if (!entry) return null;
-    if (!entry.node || !entry.node.isConnected) {
+    if (Date.now() - entry.cachedAt > CACHE_TTL) {
+      cache.delete(key);
+      return null;
+    }
+    if (!isElementValid(entry.node)) {
       cache.delete(key);
       return null;
     }
     return entry.node;
   }
   function setCache(key, node) {
-    if (!node) return;
+    if (!node || !isElementValid(node)) return;
     cache.set(key, { node, cachedAt: Date.now() });
+    cleanupOldestEntries();
   }
   function invalidate(key) {
     if (key) cache.delete(key);
@@ -253,8 +333,15 @@
     },
     kimi: {
       findInput: [
+        // 现代编辑器框架检测（Slate/Lexical）
+        '[data-slate-editor="true"][contenteditable="true"]',
+        '[data-lexical-editor="true"][contenteditable="true"]',
+        // Kimi 特定选择器
         'div.chat-input-editor[contenteditable="true"]',
         'div[class*="chat-input-editor"][contenteditable="true"]',
+        '#chat-input[contenteditable="true"]',
+        '[data-testid*="input"][contenteditable="true"]',
+        'div[class*="editor"][contenteditable="true"][role="textbox"]',
         "textarea[placeholder]",
         'div[contenteditable="true"][role="textbox"]',
         'div[contenteditable="true"]',
@@ -265,12 +352,15 @@
         "div.send-button-container:not(.disabled)",
         ".send-button-container",
         'div[class*="send-button-container"]:not(.disabled)',
+        '[data-testid*="send"]',
+        'div[class*="send"][role="button"]',
         // 向下兼容：旧版可能有内部 button
         "div.send-button-container:not(.disabled) button",
         'div[class*="send-button-container"]:not(.disabled) button',
         // Fallback
         'button[class*="send"]:not([disabled])',
         'button[type="submit"]:not([disabled])',
+        'button[data-testid*="submit"]',
         'button[aria-label*="\u53D1\u9001"]',
         'button[aria-label*="Send"]'
       ]
@@ -291,11 +381,19 @@
     }
   };
   var cachedSelectors = null;
+  var selectorsVersion = 0;
+  var isFetchingSelectors = false;
+  var pendingInvalidation = false;
   if (chrome.storage?.onChanged?.addListener) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local") return;
       if (!changes || !changes.aib_dynamic_selectors) return;
+      if (isFetchingSelectors) {
+        pendingInvalidation = true;
+        return;
+      }
       cachedSelectors = null;
+      selectorsVersion++;
       invalidate();
     });
   }
@@ -326,10 +424,18 @@
     };
   }
   async function getDynamicSelectors() {
-    if (cachedSelectors) return cachedSelectors;
+    if (cachedSelectors && !pendingInvalidation) {
+      return cachedSelectors;
+    }
+    isFetchingSelectors = true;
+    const currentVersion = selectorsVersion;
     try {
       const store = await chrome.storage.local.get("aib_dynamic_selectors");
       const payload = store?.aib_dynamic_selectors?.data;
+      if (selectorsVersion !== currentVersion) {
+        cachedSelectors = null;
+        pendingInvalidation = false;
+      }
       if (!payload || typeof payload !== "object") {
         cachedSelectors = defaultSelectors;
         return cachedSelectors;
@@ -353,6 +459,13 @@
       cachedSelectors = merged;
     } catch (err) {
       cachedSelectors = defaultSelectors;
+    } finally {
+      isFetchingSelectors = false;
+      if (pendingInvalidation) {
+        pendingInvalidation = false;
+        cachedSelectors = null;
+        invalidate();
+      }
     }
     return cachedSelectors;
   }
@@ -401,37 +514,85 @@
   function waitForElementByMutation(matchFn, options = {}) {
     const timeout = Number.isFinite(options.timeout) ? options.timeout : 6e3;
     const root = options.root || document.body || document.documentElement;
-    return new Promise((resolve) => {
-      try {
-        const immediate = matchFn();
-        if (immediate) {
-          resolve(immediate);
-          return;
+    const checkOnStart = options.checkOnStart !== false;
+    return new Promise((resolve, reject) => {
+      if (checkOnStart) {
+        try {
+          const immediate = matchFn();
+          if (immediate) {
+            resolve(immediate);
+            return;
+          }
+        } catch (err) {
+          if (options.throwOnError) {
+            reject(err);
+            return;
+          }
         }
-      } catch (_) {
       }
       let done = false;
       let observer = null;
       let timer = null;
-      const finish = (value) => {
-        if (done) return;
+      let rafId = null;
+      const cleanup = () => {
         done = true;
-        if (timer) clearTimeout(timer);
-        if (observer) observer.disconnect();
-        resolve(value || null);
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       };
-      timer = setTimeout(() => finish(null), timeout);
+      const finish = (value, error = null) => {
+        if (done) return;
+        cleanup();
+        if (error && options.throwOnError) {
+          reject(error);
+        } else {
+          resolve(value || null);
+        }
+      };
+      timer = setTimeout(() => {
+        finish(null);
+      }, timeout);
+      const check = () => {
+        if (done) return;
+        try {
+          const next = matchFn();
+          if (next) {
+            finish(next);
+            return;
+          }
+        } catch (err) {
+          if (options.throwOnError) {
+            finish(null, err);
+            return;
+          }
+        }
+        rafId = requestAnimationFrame(check);
+      };
       try {
-        observer = new MutationObserver(() => {
-          try {
-            const next = matchFn();
-            if (next) finish(next);
-          } catch (_) {
+        observer = new MutationObserver((mutations) => {
+          if (!done && mutations.some((m) => m.addedNodes.length > 0)) {
+            check();
           }
         });
-        observer.observe(root, { childList: true, subtree: true });
-      } catch (_) {
-        finish(null);
+        observer.observe(root, {
+          childList: true,
+          subtree: true,
+          attributes: false,
+          // 不监听属性变化以提高性能
+          characterData: false
+        });
+        rafId = requestAnimationFrame(check);
+      } catch (err) {
+        rafId = requestAnimationFrame(check);
       }
     });
   }
@@ -483,26 +644,44 @@
       el.dispatchEvent(new Event("change", { bubbles: true }));
       return { strategy: "react-value", fallbackUsed: false };
     }
+    function assertElementValid(el, context = "") {
+      if (!el) throw new Error(`${context}: Element is null`);
+      if (!el.isConnected) throw new Error(`${context}: Element disconnected from DOM`);
+      return true;
+    }
+    async function safeElementOperation(el, operation, context = "") {
+      assertElementValid(el, context);
+      const result = await operation(el);
+      assertElementValid(el, `${context}-post`);
+      return result;
+    }
     async function tryInsertText(el, text) {
-      el.focus();
-      await sleep2(8);
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      document.execCommand("insertText", false, text);
-      const verified = await verifyContent(el, text);
-      if (verified) {
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-      }
-      return verified;
+      return safeElementOperation(el, async (target) => {
+        target.focus();
+        await sleep2(8);
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        document.execCommand("insertText", false, text);
+        const verified = await verifyContent(target, text);
+        if (verified) {
+          target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+        }
+        return verified;
+      }, "tryInsertText");
     }
     async function tryClipboardPaste(el, text) {
-      await navigator.clipboard.writeText(text);
-      el.focus();
-      await sleep2(8);
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      document.execCommand("paste");
-      return verifyContent(el, text);
+      return safeElementOperation(el, async (target) => {
+        if (!navigator.clipboard?.writeText) {
+          throw new Error("Clipboard API not available");
+        }
+        await navigator.clipboard.writeText(text);
+        target.focus();
+        await sleep2(8);
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        document.execCommand("paste");
+        return verifyContent(target, text);
+      }, "tryClipboardPaste");
     }
     async function tryDataTransferPaste(el, text) {
       el.focus();
@@ -563,20 +742,46 @@
     }
     async function runStrategies(el, strategyList, logger, opts = {}) {
       const skipClear = Boolean(opts.skipClear);
+      const maxRetries = opts.maxRetries || 1;
       for (const strategy of strategyList) {
-        try {
-          if (await strategy.run()) {
-            logger.debug("inject-strategy-success", { strategy: strategy.name });
-            return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
-          }
-          logger.debug("inject-strategy-miss", { strategy: strategy.name });
-          if (!skipClear) await clearElement(el);
-        } catch (err) {
-          logger.debug("inject-strategy-error", { strategy: strategy.name, error: err.message });
-          if (!skipClear) {
-            try {
-              await clearElement(el);
-            } catch (_) {
+        let attempts = 0;
+        let lastError = null;
+        while (attempts <= maxRetries) {
+          try {
+            if (!el || !el.isConnected) {
+              throw new Error("Element disconnected during strategy execution");
+            }
+            if (await strategy.run()) {
+              logger.debug("inject-strategy-success", { strategy: strategy.name, attempt: attempts });
+              return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) || attempts > 0 };
+            }
+            logger.debug("inject-strategy-miss", { strategy: strategy.name, attempt: attempts });
+            if (!skipClear) {
+              try {
+                await clearElement(el);
+              } catch (clearErr) {
+                logger.debug("clear-element-error", { error: clearErr.message });
+              }
+            }
+            attempts++;
+            if (attempts <= maxRetries) {
+              await sleep2(50 * attempts);
+            }
+          } catch (err) {
+            lastError = err;
+            logger.debug("inject-strategy-error", { strategy: strategy.name, attempt: attempts, error: err.message });
+            if (err.message.includes("disconnected") || err.message.includes("null")) {
+              throw err;
+            }
+            if (!skipClear) {
+              try {
+                await clearElement(el);
+              } catch (_) {
+              }
+            }
+            attempts++;
+            if (attempts <= maxRetries) {
+              await sleep2(50 * attempts);
             }
           }
         }
@@ -632,72 +837,95 @@
       const { logger } = options;
       el.focus();
       await sleep2(20);
-      const richTextarea = el.closest("rich-textarea") || el.parentElement;
-      const quill = richTextarea?.__quill || el.__quill;
-      if (quill) {
-        quill.setText("");
-        if (text.length <= GEMINI_CHUNK_SIZE) {
-          quill.insertText(0, text, "user");
-        } else {
-          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
-            quill.insertText(i, text.slice(i, i + GEMINI_CHUNK_SIZE), "user");
-            await sleep2(8);
+      try {
+        const richTextarea = el.closest("rich-textarea") || el.parentElement;
+        const quill = richTextarea?.__quill || el.__quill;
+        if (quill) {
+          quill.setText("");
+          if (text.length <= GEMINI_CHUNK_SIZE) {
+            quill.insertText(0, text, "user");
+          } else {
+            for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
+              quill.insertText(i, text.slice(i, i + GEMINI_CHUNK_SIZE), "user");
+              await sleep2(8);
+            }
           }
+          quill.setSelection(text.length, 0);
+          notifyGeminiFramework(el, text);
+          await sleep2(20);
+          if (await verifyContentStrict(el, text, 200, 20)) {
+            return { strategy: "gemini-quill", fallbackUsed: false };
+          }
+          quill.setText("");
         }
-        quill.setSelection(text.length, 0);
-        notifyGeminiFramework(el, text);
-        await sleep2(20);
-        if (await verifyContentStrict(el, text, 200, 20)) {
-          return { strategy: "gemini-quill", fallbackUsed: false };
+      } catch (err) {
+        logger?.debug?.("gemini-quill-failed", { error: err?.message });
+      }
+      try {
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        await insertTextInChunks(el, text);
+        if (await verifyContentStrict(el, text, 150, 20)) {
+          notifyGeminiFramework(el, text);
+          return { strategy: "gemini-insertText", fallbackUsed: false };
         }
-        quill.setText("");
+      } catch (err) {
+        logger?.debug?.("gemini-insertText-failed", { error: err?.message });
       }
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      await insertTextInChunks(el, text);
-      if (await verifyContentStrict(el, text, 150, 20)) {
+      try {
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        await insertTextInChunks(el, text);
+        if (await verifyContentStrict(el, text, 150, 20)) {
+          notifyGeminiFramework(el, text);
+          return { strategy: "gemini-insertText-retry", fallbackUsed: true };
+        }
+      } catch (err) {
+        logger?.debug?.("gemini-insertText-retry-failed", { error: err?.message });
+      }
+      try {
+        el.innerHTML = "";
+        const p = document.createElement("p");
+        p.textContent = text;
+        el.appendChild(p);
         notifyGeminiFramework(el, text);
-        return { strategy: "gemini-insertText", fallbackUsed: Boolean(quill) };
+        if (await verifyContentStrict(el, text, 150, 20)) {
+          return { strategy: "gemini-direct-dom", fallbackUsed: true };
+        }
+      } catch (err) {
+        logger?.debug?.("gemini-direct-dom-failed", { error: err?.message });
       }
-      document.execCommand("selectAll", false, null);
-      document.execCommand("delete", false, null);
-      await insertTextInChunks(el, text);
-      if (await verifyContentStrict(el, text, 150, 20)) {
-        notifyGeminiFramework(el, text);
-        return { strategy: "gemini-insertText-retry", fallbackUsed: true };
-      }
-      el.innerHTML = "";
-      const p = document.createElement("p");
-      p.textContent = text;
-      el.appendChild(p);
-      notifyGeminiFramework(el, text);
-      if (await verifyContentStrict(el, text, 150, 20)) {
-        return { strategy: "gemini-direct-dom", fallbackUsed: true };
-      }
-      logger.debug("gemini-inject-failed-after-fallbacks");
-      throw new Error("Gemini \u8F93\u5165\u6CE8\u5165\u5931\u8D25");
+      logger?.debug?.("gemini-falling-back-to-standard");
+      return setContentEditable2(el, text, options);
     }
     async function setYuanbaoInput(el, text, options) {
+      const { logger } = options || {};
       el.focus();
       await sleep2(16);
-      const quill = el.__quill || el.closest(".ql-container")?.__quill || el.closest(".ql-editor")?.__quill;
-      if (quill) {
-        quill.setText("");
-        quill.insertText(0, text, "user");
-        quill.setSelection(text.length, 0);
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        if (await verifyContent(el, text, 150, 20)) {
-          return { strategy: "yuanbao-quill", fallbackUsed: false };
+      try {
+        const quill = el.__quill || el.closest(".ql-container")?.__quill || el.closest(".ql-editor")?.__quill;
+        if (quill) {
+          quill.setText("");
+          quill.insertText(0, text, "user");
+          quill.setSelection(text.length, 0);
+          el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          if (await verifyContent(el, text, 150, 20)) {
+            return { strategy: "yuanbao-quill", fallbackUsed: false };
+          }
         }
+      } catch (err) {
+        logger?.debug?.("yuanbao-quill-failed", { error: err?.message });
       }
       return setContentEditable2(el, text, options);
     }
+    const QIANWEN_TASK_ASSISTANT_KEYWORDS = ["\u4EFB\u52A1\u52A9\u7406", "Task Assistant", "\u4EFB\u52A1\u52A9\u624B", "TaskAssistant", "\u667A\u80FD\u52A9\u624B", "AI Assistant"];
     async function closeQianwenTaskAssistant2() {
       const allTags = document.querySelectorAll('[class*="tagBtn"][class*="selected"], [class*="tag"][aria-selected="true"]');
       let tag = null;
       for (const node of allTags) {
-        if (node.textContent && node.textContent.includes("\u4EFB\u52A1\u52A9\u7406")) {
+        const text = node.textContent || "";
+        if (QIANWEN_TASK_ASSISTANT_KEYWORDS.some((kw) => text.includes(kw))) {
           tag = node;
           break;
         }
@@ -714,10 +942,11 @@
       const { logger } = options || {};
       el.focus();
       await sleep2(16);
-      const slateNode = el.closest('[data-slate-editor="true"]') || el;
-      const fiberKey = Object.keys(slateNode).find((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
-      if (fiberKey) {
+      const tryReactFiberSlate = async () => {
         try {
+          const slateNode = el.closest('[data-slate-editor="true"]') || el;
+          const fiberKey = Object.keys(slateNode).find((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactInternalInstance$"));
+          if (!fiberKey) return false;
           let fiber = slateNode[fiberKey];
           for (let i = 0; i < 15 && fiber; i++) {
             const editor = fiber.memoizedProps?.editor || fiber.stateNode?.editor;
@@ -732,14 +961,19 @@
               const actual = normalizeText2(getContent2(el));
               const expected = normalizeText2(text);
               if (actual && (actual === expected || actual.includes(expected.slice(0, Math.min(expected.length, 20))))) {
-                return { strategy: "qianwen-slate-api", fallbackUsed: false };
+                return true;
               }
-              return { strategy: "qianwen-slate-api-best-effort", fallbackUsed: false };
             }
             fiber = fiber.return;
           }
-        } catch (_) {
+          return false;
+        } catch (err) {
+          logger?.debug?.("qianwen-fiber-failed", { error: err?.message });
+          return false;
         }
+      };
+      if (await tryReactFiberSlate()) {
+        return { strategy: "qianwen-slate-api", fallbackUsed: false };
       }
       const tryQianwenInsertTextStrict = async () => {
         el.focus();
@@ -749,16 +983,13 @@
         document.execCommand("insertText", false, text);
         return verifyContentStrict(el, text, 220, 20);
       };
-      const result = await runStrategies(el, [
+      return runStrategies(el, [
         { name: "qw-insertText-strict", fallbackUsed: false, run: tryQianwenInsertTextStrict },
         { name: "qw-insertText", fallbackUsed: true, run: () => tryInsertText(el, text) },
         { name: "qw-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
         { name: "qw-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
         { name: "qw-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
       ], logger, { skipClear: true });
-      const strictOk = await verifyContentStrict(el, text, 220, 20);
-      if (strictOk) return result;
-      return result;
     }
     const qianwenInject2 = async (el, text, options) => {
       await closeQianwenTaskAssistant2();
@@ -768,9 +999,56 @@
     const kimiInject2 = async (el, text, options) => {
       if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue2(el, text);
       const { logger } = options || {};
+      const tryKimiSlateInput = async () => {
+        const isSlate = el.hasAttribute("data-slate-editor") || el.closest('[data-slate-editor="true"]');
+        if (!isSlate) return false;
+        el.focus();
+        await sleep2(20);
+        const sel = window.getSelection();
+        if (sel && el.childNodes.length > 0) {
+          try {
+            sel.selectAllChildren(el);
+            el.dispatchEvent(new InputEvent("beforeinput", {
+              inputType: "deleteContentBackward",
+              bubbles: true,
+              cancelable: true
+            }));
+            await sleep2(10);
+          } catch (_) {
+          }
+        }
+        const chunkSize = text.length > 100 ? 20 : 1;
+        for (let i = 0; i < text.length; i += chunkSize) {
+          const chunk = text.slice(i, i + chunkSize);
+          el.dispatchEvent(new InputEvent("beforeinput", {
+            inputType: "insertText",
+            data: chunk,
+            bubbles: true,
+            cancelable: true
+          }));
+          el.dispatchEvent(new InputEvent("input", {
+            inputType: "insertText",
+            data: chunk,
+            bubbles: true
+          }));
+          if (i % 100 === 0) await sleep2(2);
+        }
+        el.dispatchEvent(new InputEvent("input", {
+          inputType: "insertText",
+          data: text,
+          bubbles: true
+        }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        return verifyContent(el, text, 350, 25);
+      };
       const tryKimiPaste = async () => {
         el.focus();
-        await sleep2(16);
+        await sleep2(20);
+        el.dispatchEvent(new InputEvent("beforeinput", {
+          inputType: "deleteContentBackward",
+          bubbles: true,
+          cancelable: true
+        }));
         document.execCommand("selectAll", false, null);
         document.execCommand("delete", false, null);
         const dt = new DataTransfer();
@@ -782,11 +1060,32 @@
           cancelable: true,
           composed: true
         }));
-        return verifyContent(el, text, 250, 20);
+        await sleep2(30);
+        el.dispatchEvent(new InputEvent("input", {
+          inputType: "insertText",
+          data: text,
+          bubbles: true
+        }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        return verifyContent(el, text, 350, 25);
+      };
+      const tryKimiInsertText = async () => {
+        el.focus();
+        await sleep2(10);
+        document.execCommand("selectAll", false, null);
+        document.execCommand("delete", false, null);
+        document.execCommand("insertText", false, text);
+        el.dispatchEvent(new InputEvent("input", {
+          inputType: "insertText",
+          data: text,
+          bubbles: true
+        }));
+        return verifyContent(el, text, 300, 25);
       };
       return runStrategies(el, [
+        { name: "kimi-slate-input", fallbackUsed: false, run: tryKimiSlateInput },
         { name: "kimi-paste", fallbackUsed: false, run: tryKimiPaste },
-        { name: "kimi-insertText", fallbackUsed: false, run: () => tryInsertText(el, text) },
+        { name: "kimi-insertText", fallbackUsed: false, run: tryKimiInsertText },
         { name: "kimi-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
         { name: "kimi-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
         { name: "kimi-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
@@ -1344,38 +1643,76 @@
   var kimiSend = async (el, options) => {
     const logger = options?.logger;
     const before = normalizeText(getContent(el));
-    const selectorBtn = await findSendBtnForPlatform("kimi");
-    if (selectorBtn) {
-      const innerBtn = selectorBtn.tagName !== "BUTTON" ? selectorBtn.querySelector("button") : null;
-      (innerBtn || selectorBtn).click();
-      await sleep(400);
-      const after = normalizeText(getContent(el));
-      if (!before || after !== before) return true;
+    if (!el || !el.isConnected) {
+      logger?.debug?.("kimi-send-input-not-connected");
+      return false;
     }
-    const container = el?.closest("form") || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
-    const findSendBtn = () => {
-      const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]') : [];
-      for (const b of buttons) {
-        const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${(b.textContent || "").trim()}`.toLowerCase();
-        if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("submit") || hint.includes("\u63D0\u4EA4")) return b;
+    invalidate();
+    await sleep(150);
+    const tryClickSend = async () => {
+      const selectorBtn = await findSendBtnForPlatform("kimi");
+      if (selectorBtn && !isNodeDisabled(selectorBtn)) {
+        const innerBtn = selectorBtn.tagName !== "BUTTON" ? selectorBtn.querySelector("button:not([disabled])") : null;
+        const target = innerBtn || selectorBtn;
+        target.click();
+        await sleep(300);
+        const after = normalizeText(getContent(el));
+        if (!before || after !== before) return true;
+        logger?.debug?.("kimi-send-selector-clicked-but-no-change");
       }
-      return null;
+      const container = el?.closest("form") || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+      const findSendBtn = () => {
+        const precise = container.querySelector?.('div.send-button-container:not(.disabled), [data-testid*="send"]:not([disabled])');
+        if (precise && !isNodeDisabled(precise)) return precise;
+        const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]:not([aria-disabled="true"])') : [];
+        for (const b of buttons) {
+          if (isNodeDisabled(b)) continue;
+          const hint = `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.getAttribute("data-testid") || ""} ${(b.textContent || "").trim()}`.toLowerCase();
+          if (hint.includes("\u53D1\u9001") || hint.includes("send") || hint.includes("submit") || hint.includes("\u63D0\u4EA4")) return b;
+        }
+        return null;
+      };
+      const btn = await waitFor(findSendBtn, 1500, 60);
+      if (btn) {
+        btn.click();
+        await sleep(300);
+        const after = normalizeText(getContent(el));
+        if (!before || after !== before) return true;
+      }
+      return false;
     };
-    const btn = await waitFor(findSendBtn, 3500, 40);
-    if (btn) {
-      btn.click();
-      await sleep(400);
-      const after = normalizeText(getContent(el));
-      if (!before || after !== before) return true;
-    } else {
-      el?.focus();
+    let sent = await tryClickSend();
+    if (!sent && el) {
+      logger?.debug?.("kimi-send-fallback-to-enter");
+      el.focus();
+      await sleep(80);
       pressEnterOn(el);
       await sleep(400);
       const after = normalizeText(getContent(el));
-      if (!before || after !== before) return true;
+      sent = !before || after !== before;
     }
-    logger?.debug?.("kimi-send-no-change");
-    return false;
+    if (!sent && before.length > 0) {
+      logger?.debug?.("kimi-send-retry-after-failure");
+      await sleep(500);
+      if (el && el.isConnected) {
+        const current = normalizeText(getContent(el));
+        if (current === before) {
+          el.focus();
+          await sleep(100);
+          pressEnterOn(el);
+          await sleep(400);
+          const after = normalizeText(getContent(el));
+          sent = !before || after !== before;
+        } else {
+          sent = true;
+          logger?.debug?.("kimi-send-content-changed-assume-success");
+        }
+      }
+    }
+    if (!sent) {
+      logger?.debug?.("kimi-send-no-change", { contentLength: before.length });
+    }
+    return sent;
   };
   var yuanbaoSend = async (el, options) => {
     const logger = options?.logger;

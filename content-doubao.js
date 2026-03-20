@@ -10,37 +10,56 @@
       findSendBtnForPlatform,
       findSendBtnHeuristically,
       pressEnterOn,
-      isDoubaoVerificationPage
+      isDoubaoVerificationPage,
+      sleep
     } = deps;
+    async function antiDetectionDelay() {
+      const delay = 3e3 + Math.floor(Math.random() * 5e3);
+      await sleep(delay);
+    }
     return {
       name: "Doubao",
       findInput: async () => {
         if (isDoubaoVerificationPage()) {
           const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
           err.stage = "findInput";
+          err.isRiskControl = true;
+          err.platformName = "Doubao";
           throw err;
         }
         return await findInputForPlatform("doubao") || waitFor(() => findInputHeuristically());
       },
       async inject(el, text, options) {
-        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue(el, text);
+        if (el) {
+          el.focus();
+          el.click();
+          await sleep(200 + Math.floor(Math.random() * 300));
+        }
+        if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+          return setReactValue(el, text);
+        }
         return setContentEditable(el, text, options);
       },
-      async send(el) {
+      async send(el, options) {
         if (isDoubaoVerificationPage()) {
           const err = new Error("\u8C46\u5305\u5F53\u524D\u5904\u4E8E\u4EBA\u673A\u9A8C\u8BC1\u9875\u9762\uFF0C\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u540E\u518D\u91CD\u8BD5");
           err.stage = "send";
+          err.isRiskControl = true;
+          err.platformName = "Doubao";
           throw err;
         }
+        await antiDetectionDelay();
         const btn = await findSendBtnForPlatform("doubao") || await waitFor(() => findSendBtnHeuristically(el), 3e3, 30);
         if (btn) {
           btn.click();
-          return;
+          return true;
         }
         if (el) {
           el.focus();
           pressEnterOn(el);
+          return true;
         }
+        return false;
       }
     };
   }

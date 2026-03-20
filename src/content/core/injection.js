@@ -50,27 +50,59 @@ export function createInjectionTools(deps) {
     return { strategy: 'react-value', fallbackUsed: false };
   }
 
+  // ── Safe Element Operations with Race Condition Protection ──
+
+  /**
+   * 验证元素在操作期间是否仍然有效
+   * 防止 React/Vue 在 await 期间替换元素导致的竞态条件
+   */
+  function assertElementValid(el, context = '') {
+    if (!el) throw new Error(`${context}: Element is null`);
+    if (!el.isConnected) throw new Error(`${context}: Element disconnected from DOM`);
+    return true;
+  }
+
+  /**
+   * 安全的元素操作包装器
+   * 在每次 DOM 操作前验证元素有效性
+   */
+  async function safeElementOperation(el, operation, context = '') {
+    assertElementValid(el, context);
+    const result = await operation(el);
+    assertElementValid(el, `${context}-post`);
+    return result;
+  }
+
   async function tryInsertText(el, text) {
-    el.focus();
-    await sleep(8);
-    document.execCommand('selectAll', false, null);
-    document.execCommand('delete', false, null);
-    document.execCommand('insertText', false, text);
-    const verified = await verifyContent(el, text);
-    if (verified) {
-      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-    }
-    return verified;
+    return safeElementOperation(el, async (target) => {
+      target.focus();
+      await sleep(8);
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      document.execCommand('insertText', false, text);
+      const verified = await verifyContent(target, text);
+      if (verified) {
+        target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      }
+      return verified;
+    }, 'tryInsertText');
   }
 
   async function tryClipboardPaste(el, text) {
-    await navigator.clipboard.writeText(text);
-    el.focus();
-    await sleep(8);
-    document.execCommand('selectAll', false, null);
-    document.execCommand('delete', false, null);
-    document.execCommand('paste');
-    return verifyContent(el, text);
+    return safeElementOperation(el, async (target) => {
+      // 检查剪贴板权限
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API not available');
+      }
+
+      await navigator.clipboard.writeText(text);
+      target.focus();
+      await sleep(8);
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      document.execCommand('paste');
+      return verifyContent(target, text);
+    }, 'tryClipboardPaste');
   }
 
   async function tryDataTransferPaste(el, text) {
@@ -135,19 +167,61 @@ export function createInjectionTools(deps) {
 
   async function runStrategies(el, strategyList, logger, opts = {}) {
     const skipClear = Boolean(opts.skipClear);
+    const maxRetries = opts.maxRetries || 1;
+
     for (const strategy of strategyList) {
-      try {
-        if (await strategy.run()) {
-          logger.debug('inject-strategy-success', { strategy: strategy.name });
-          return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) };
+      let attempts = 0;
+      let lastError = null;
+
+      while (attempts <= maxRetries) {
+        try {
+          // 每次尝试前验证元素仍然有效
+          if (!el || !el.isConnected) {
+            throw new Error('Element disconnected during strategy execution');
+          }
+
+          if (await strategy.run()) {
+            logger.debug('inject-strategy-success', { strategy: strategy.name, attempt: attempts });
+            return { strategy: strategy.name, fallbackUsed: Boolean(strategy.fallbackUsed) || attempts > 0 };
+          }
+
+          logger.debug('inject-strategy-miss', { strategy: strategy.name, attempt: attempts });
+
+          // 策略未成功，清理元素准备下一次尝试
+          if (!skipClear) {
+            try {
+              await clearElement(el);
+            } catch (clearErr) {
+              logger.debug('clear-element-error', { error: clearErr.message });
+            }
+          }
+
+          attempts++;
+          if (attempts <= maxRetries) {
+            await sleep(50 * attempts); // 指数退避
+          }
+
+        } catch (err) {
+          lastError = err;
+          logger.debug('inject-strategy-error', { strategy: strategy.name, attempt: attempts, error: err.message });
+
+          // 元素失效，不再重试此策略
+          if (err.message.includes('disconnected') || err.message.includes('null')) {
+            throw err; // 向上传播，可能需要重新查找元素
+          }
+
+          if (!skipClear) {
+            try { await clearElement(el); } catch (_) {}
+          }
+
+          attempts++;
+          if (attempts <= maxRetries) {
+            await sleep(50 * attempts);
+          }
         }
-        logger.debug('inject-strategy-miss', { strategy: strategy.name });
-        if (!skipClear) await clearElement(el);
-      } catch (err) {
-        logger.debug('inject-strategy-error', { strategy: strategy.name, error: err.message });
-        if (!skipClear) { try { await clearElement(el); } catch (_) {} }
       }
     }
+
     throw new Error('输入注入失败');
   }
 
@@ -209,81 +283,113 @@ export function createInjectionTools(deps) {
     el.focus();
     await sleep(20);
 
-    const richTextarea = el.closest('rich-textarea') || el.parentElement;
-    const quill = richTextarea?.__quill || el.__quill;
+    // 尝试 Quill API（最快但依赖内部属性）
+    try {
+      const richTextarea = el.closest('rich-textarea') || el.parentElement;
+      const quill = richTextarea?.__quill || el.__quill;
 
-    if (quill) {
-      quill.setText('');
-      if (text.length <= GEMINI_CHUNK_SIZE) {
-        quill.insertText(0, text, 'user');
-      } else {
-        for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
-          quill.insertText(i, text.slice(i, i + GEMINI_CHUNK_SIZE), 'user');
-          await sleep(8);
+      if (quill) {
+        quill.setText('');
+        if (text.length <= GEMINI_CHUNK_SIZE) {
+          quill.insertText(0, text, 'user');
+        } else {
+          for (let i = 0; i < text.length; i += GEMINI_CHUNK_SIZE) {
+            quill.insertText(i, text.slice(i, i + GEMINI_CHUNK_SIZE), 'user');
+            await sleep(8);
+          }
         }
+        quill.setSelection(text.length, 0);
+        notifyGeminiFramework(el, text);
+        await sleep(20);
+        if (await verifyContentStrict(el, text, 200, 20)) {
+          return { strategy: 'gemini-quill', fallbackUsed: false };
+        }
+        quill.setText('');
       }
-      quill.setSelection(text.length, 0);
-      notifyGeminiFramework(el, text);
-      await sleep(20);
-      if (await verifyContentStrict(el, text, 200, 20)) {
-        return { strategy: 'gemini-quill', fallbackUsed: false };
+    } catch (err) {
+      logger?.debug?.('gemini-quill-failed', { error: err?.message });
+    }
+
+    // 标准 insertText 策略
+    try {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      await insertTextInChunks(el, text);
+      if (await verifyContentStrict(el, text, 150, 20)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: 'gemini-insertText', fallbackUsed: false };
       }
-      quill.setText('');
+    } catch (err) {
+      logger?.debug?.('gemini-insertText-failed', { error: err?.message });
     }
 
-    document.execCommand('selectAll', false, null);
-    document.execCommand('delete', false, null);
-    await insertTextInChunks(el, text);
-    if (await verifyContentStrict(el, text, 150, 20)) {
+    // 重试一次
+    try {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      await insertTextInChunks(el, text);
+      if (await verifyContentStrict(el, text, 150, 20)) {
+        notifyGeminiFramework(el, text);
+        return { strategy: 'gemini-insertText-retry', fallbackUsed: true };
+      }
+    } catch (err) {
+      logger?.debug?.('gemini-insertText-retry-failed', { error: err?.message });
+    }
+
+    // 直接 DOM 操作
+    try {
+      el.innerHTML = '';
+      const p = document.createElement('p');
+      p.textContent = text;
+      el.appendChild(p);
       notifyGeminiFramework(el, text);
-      return { strategy: 'gemini-insertText', fallbackUsed: Boolean(quill) };
+      if (await verifyContentStrict(el, text, 150, 20)) {
+        return { strategy: 'gemini-direct-dom', fallbackUsed: true };
+      }
+    } catch (err) {
+      logger?.debug?.('gemini-direct-dom-failed', { error: err?.message });
     }
 
-    document.execCommand('selectAll', false, null);
-    document.execCommand('delete', false, null);
-    await insertTextInChunks(el, text);
-    if (await verifyContentStrict(el, text, 150, 20)) {
-      notifyGeminiFramework(el, text);
-      return { strategy: 'gemini-insertText-retry', fallbackUsed: true };
-    }
-
-    el.innerHTML = '';
-    const p = document.createElement('p');
-    p.textContent = text;
-    el.appendChild(p);
-    notifyGeminiFramework(el, text);
-    if (await verifyContentStrict(el, text, 150, 20)) {
-      return { strategy: 'gemini-direct-dom', fallbackUsed: true };
-    }
-
-    logger.debug('gemini-inject-failed-after-fallbacks');
-    throw new Error('Gemini 输入注入失败');
+    // 最终回退：标准 contenteditable 策略
+    logger?.debug?.('gemini-falling-back-to-standard');
+    return setContentEditable(el, text, options);
   }
 
   async function setYuanbaoInput(el, text, options) {
+    const { logger } = options || {};
     el.focus();
     await sleep(16);
 
-    const quill = el.__quill || el.closest('.ql-container')?.__quill || el.closest('.ql-editor')?.__quill;
-    if (quill) {
-      quill.setText('');
-      quill.insertText(0, text, 'user');
-      quill.setSelection(text.length, 0);
-      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      if (await verifyContent(el, text, 150, 20)) {
-        return { strategy: 'yuanbao-quill', fallbackUsed: false };
+    // 尝试 Quill API
+    try {
+      const quill = el.__quill || el.closest('.ql-container')?.__quill || el.closest('.ql-editor')?.__quill;
+      if (quill) {
+        quill.setText('');
+        quill.insertText(0, text, 'user');
+        quill.setSelection(text.length, 0);
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        if (await verifyContent(el, text, 150, 20)) {
+          return { strategy: 'yuanbao-quill', fallbackUsed: false };
+        }
       }
+    } catch (err) {
+      logger?.debug?.('yuanbao-quill-failed', { error: err?.message });
     }
 
+    // 回退到标准策略
     return setContentEditable(el, text, options);
   }
+
+  // 通义千问任务助理关键词（支持多语言）
+  const QIANWEN_TASK_ASSISTANT_KEYWORDS = ['任务助理', 'Task Assistant', '任务助手', 'TaskAssistant', '智能助手', 'AI Assistant'];
 
   async function closeQianwenTaskAssistant() {
     const allTags = document.querySelectorAll('[class*="tagBtn"][class*="selected"], [class*="tag"][aria-selected="true"]');
     let tag = null;
     for (const node of allTags) {
-      if (node.textContent && node.textContent.includes('任务助理')) {
+      const text = node.textContent || '';
+      if (QIANWEN_TASK_ASSISTANT_KEYWORDS.some(kw => text.includes(kw))) {
         tag = node;
         break;
       }
@@ -302,10 +408,14 @@ export function createInjectionTools(deps) {
     el.focus();
     await sleep(16);
 
-    const slateNode = el.closest('[data-slate-editor="true"]') || el;
-    const fiberKey = Object.keys(slateNode).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
-    if (fiberKey) {
+    // WARNING: React Fiber 内部 API，可能在 React 版本更新后失效
+    // 仅作为优化路径，必须有可靠的 fallback
+    const tryReactFiberSlate = async () => {
       try {
+        const slateNode = el.closest('[data-slate-editor="true"]') || el;
+        const fiberKey = Object.keys(slateNode).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+        if (!fiberKey) return false;
+
         let fiber = slateNode[fiberKey];
         for (let i = 0; i < 15 && fiber; i++) {
           const editor = fiber.memoizedProps?.editor || fiber.stateNode?.editor;
@@ -317,15 +427,24 @@ export function createInjectionTools(deps) {
             const actual = normalizeText(getContent(el));
             const expected = normalizeText(text);
             if (actual && (actual === expected || actual.includes(expected.slice(0, Math.min(expected.length, 20))))) {
-              return { strategy: 'qianwen-slate-api', fallbackUsed: false };
+              return true;
             }
-            return { strategy: 'qianwen-slate-api-best-effort', fallbackUsed: false };
           }
           fiber = fiber.return;
         }
-      } catch (_) {}
+        return false;
+      } catch (err) {
+        logger?.debug?.('qianwen-fiber-failed', { error: err?.message });
+        return false;
+      }
+    };
+
+    // 优先尝试 Fiber API（最快），失败则使用标准策略
+    if (await tryReactFiberSlate()) {
+      return { strategy: 'qianwen-slate-api', fallbackUsed: false };
     }
 
+    // 标准策略序列（稳定可靠）
     const tryQianwenInsertTextStrict = async () => {
       el.focus();
       await sleep(8);
@@ -335,16 +454,13 @@ export function createInjectionTools(deps) {
       return verifyContentStrict(el, text, 220, 20);
     };
 
-    const result = await runStrategies(el, [
+    return runStrategies(el, [
       { name: 'qw-insertText-strict', fallbackUsed: false, run: tryQianwenInsertTextStrict },
       { name: 'qw-insertText', fallbackUsed: true, run: () => tryInsertText(el, text) },
       { name: 'qw-datatransfer', fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
       { name: 'qw-clipboard', fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
       { name: 'qw-direct-dom', fallbackUsed: true, run: () => tryDirectDom(el, text) }
     ], logger, { skipClear: true });
-    const strictOk = await verifyContentStrict(el, text, 220, 20);
-    if (strictOk) return result;
-    return result;
   }
 
   const qianwenInject = async (el, text, options) => {
@@ -357,26 +473,117 @@ export function createInjectionTools(deps) {
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
     const { logger } = options || {};
 
+    // 策略1: Slate 编辑器专用 - 使用 beforeinput/input 事件链
+    const tryKimiSlateInput = async () => {
+      const isSlate = el.hasAttribute('data-slate-editor') || el.closest('[data-slate-editor="true"]');
+      if (!isSlate) return false;
+
+      el.focus();
+      await sleep(20);
+
+      // 清除现有内容
+      const sel = window.getSelection();
+      if (sel && el.childNodes.length > 0) {
+        try {
+          sel.selectAllChildren(el);
+          el.dispatchEvent(new InputEvent('beforeinput', {
+            inputType: 'deleteContentBackward',
+            bubbles: true,
+            cancelable: true
+          }));
+          await sleep(10);
+        } catch (_) {}
+      }
+
+      // 分段输入文本（避免大文本性能问题）
+      const chunkSize = text.length > 100 ? 20 : 1;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        el.dispatchEvent(new InputEvent('beforeinput', {
+          inputType: 'insertText',
+          data: chunk,
+          bubbles: true,
+          cancelable: true
+        }));
+        el.dispatchEvent(new InputEvent('input', {
+          inputType: 'insertText',
+          data: chunk,
+          bubbles: true
+        }));
+        if (i % 100 === 0) await sleep(2);
+      }
+
+      // 触发最终 input 和 change 事件
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true
+      }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+
+      return verifyContent(el, text, 350, 25);
+    };
+
+    // 策略2: 改进的 paste 策略 - 更完整的事件链
     const tryKimiPaste = async () => {
       el.focus();
-      await sleep(16);
+      await sleep(20);
+
+      // 触发 beforeinput 删除事件
+      el.dispatchEvent(new InputEvent('beforeinput', {
+        inputType: 'deleteContentBackward',
+        bubbles: true,
+        cancelable: true
+      }));
+
       document.execCommand('selectAll', false, null);
       document.execCommand('delete', false, null);
+
       const dt = new DataTransfer();
       dt.setData('text/plain', text);
       dt.setData('text/html', `<p>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`);
+
       el.dispatchEvent(new ClipboardEvent('paste', {
         clipboardData: dt,
         bubbles: true,
         cancelable: true,
         composed: true
       }));
-      return verifyContent(el, text, 250, 20);
+
+      // 触发后续事件确保框架检测到变化
+      await sleep(30);
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true
+      }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+
+      return verifyContent(el, text, 350, 25);
+    };
+
+    // 策略3: 标准的 insertText
+    const tryKimiInsertText = async () => {
+      el.focus();
+      await sleep(10);
+      document.execCommand('selectAll', false, null);
+      document.execCommand('delete', false, null);
+      document.execCommand('insertText', false, text);
+
+      // 额外触发 input 事件
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true
+      }));
+
+      return verifyContent(el, text, 300, 25);
     };
 
     return runStrategies(el, [
+      { name: 'kimi-slate-input', fallbackUsed: false, run: tryKimiSlateInput },
       { name: 'kimi-paste', fallbackUsed: false, run: tryKimiPaste },
-      { name: 'kimi-insertText', fallbackUsed: false, run: () => tryInsertText(el, text) },
+      { name: 'kimi-insertText', fallbackUsed: false, run: tryKimiInsertText },
       { name: 'kimi-clipboard', fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
       { name: 'kimi-datatransfer', fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
       { name: 'kimi-direct-dom', fallbackUsed: true, run: () => tryDirectDom(el, text) }

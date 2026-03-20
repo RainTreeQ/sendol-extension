@@ -48,6 +48,9 @@ const FALLBACK_MESSAGES = {
     image_confirm_body: 'Only ChatGPT and Claude can receive images right now. Continue sending anyway?',
     image_confirm_send: 'Send now',
     image_confirm_cancel: 'Let me think',
+    retry_send: 'Retry send',
+    verification_required: 'Verification required - click to open tab',
+    status_verification_required: '$1 — Verification required: please complete the verification on the page',
   },
   zh_CN: {
     popup_title: 'Sendol',
@@ -98,6 +101,9 @@ const FALLBACK_MESSAGES = {
     image_confirm_body: '当前仅 ChatGPT 和 Claude 支持接收图片，是否仍继续发送？',
     image_confirm_send: '继续发送',
     image_confirm_cancel: '再想想',
+    retry_send: '重新发送',
+    verification_required: '需要验证 - 点击打开标签页',
+    status_verification_required: '$1 — 需要验证：请在页面上完成验证',
   },
 }
 

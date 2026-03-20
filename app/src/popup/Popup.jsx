@@ -1,7 +1,8 @@
 /* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus } from 'lucide-react'
+import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus, RotateCcw, ExternalLink } from 'lucide-react'
 import { t } from '@/lib/i18n'
+import { Onboarding } from '@/components/Onboarding'
 import {
   clearDraftFromStorage,
   getPopupBootstrapState,
@@ -113,6 +114,7 @@ export default function Popup() {
   const [newChat, setNewChat] = useState(false)
   const [popupSettingsReady, setPopupSettingsReady] = useState(false)
   const [statuses, setStatuses] = useState([])
+  const [failedSends, setFailedSends] = useState([]) // [{ tabId, platformName, text, imageData, timestamp }]
   const [tabsLoading, setTabsLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [locatingUpload, setLocatingUpload] = useState(false)
@@ -545,6 +547,7 @@ export default function Popup() {
       }
       const safety = summary?.safety || null
       let successCount = 0
+      const newFailedSends = []
 
       results.forEach((result) => {
         const tabInfo = aiTabs.find((t) => t.id === result.tabId)
@@ -553,14 +556,47 @@ export default function Popup() {
           successCount++
           const msg = result.sent === true ? t('status_sent', [name]) : t('status_drafted', [name])
           addStatus(msg, 'success')
+          // Remove from failed sends if it was there
+          setFailedSends(prev => prev.filter(f => f.tabId !== result.tabId))
         } else {
-          addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
+          // 检测是否为风控错误
+          const isRiskControl = result.error?.includes('验证') || 
+                               result.error?.includes('captcha') ||
+                               result.error?.includes('verification') ||
+                               result.error?.includes('risk') ||
+                               result.stage === 'risk'
+          
+          if (isRiskControl) {
+            addStatus(t('status_verification_required', [name]), 'warning')
+          } else {
+            addStatus(t('status_failed', [name, String(result.error || t('unknown'))]), 'error')
+          }
+          
+          // Store failed send for retry
+          newFailedSends.push({
+            tabId: result.tabId,
+            platformName: name,
+            text,
+            imageData: hasImage ? imageData : null,
+            timestamp: Date.now(),
+            isRiskControl  // 标记风控错误
+          })
         }
         const debugLine = String(result.debugLog || '')
         if (debugLine) {
           addStatus(`${name} 调试：${debugLine}`, 'pending')
         }
       })
+
+      // Update failed sends state
+      if (newFailedSends.length > 0) {
+        setFailedSends(prev => {
+          // Remove old failed sends for same tabs
+          const filtered = prev.filter(f => !newFailedSends.some(n => n.tabId === f.tabId))
+          return [...filtered, ...newFailedSends]
+        })
+      }
+
       if (safety?.autoSendBlockedBySafeMode) {
         addStatus(t('safe_mode_auto_send_blocked'), 'pending')
       }
@@ -703,6 +739,83 @@ export default function Popup() {
     setShowImageConfirm(false)
   }, [])
 
+  // Open a tab for verification (for risk control errors)
+  const handleOpenTab = useCallback(async (tabId) => {
+    try {
+      await chrome.tabs.update(tabId, { active: true })
+      closePopupSafely()
+    } catch (err) {
+      console.error('Failed to open tab:', err)
+    }
+  }, [])
+
+  // Retry a failed send
+  const handleRetrySend = useCallback(async (failedSend) => {
+    const { tabId, text, imageData, isRiskControl } = failedSend
+    
+    // If it's a risk control error, just open the tab
+    if (isRiskControl) {
+      handleOpenTab(tabId)
+      return
+    }
+    
+    setFailedSends(prev => prev.filter(f => f.tabId !== tabId))
+    
+    const requestId = createRequestId()
+    const clientTs = Date.now()
+    let debug = false
+
+    try {
+      const runtimeFlags = await chrome.storage.local.get(['debugLogs'])
+      debug = Boolean(runtimeFlags?.debugLogs)
+    } catch (err) {
+      if (handleContextLoss(err)) return
+      addStatus(t('status_failed_simple', [String(err?.message || t('unknown'))]), 'error')
+      return
+    }
+
+    try {
+      let response
+      if (imageData) {
+        response = await chrome.runtime.sendMessage({
+          type: 'BROADCAST_IMAGE',
+          imageBase64: imageData.base64,
+          mimeType: imageData.mimeType,
+          text,
+          autoSend,
+          tabIds: [tabId],
+          requestId,
+          debug,
+        })
+      } else {
+        response = await chrome.runtime.sendMessage({
+          type: 'BROADCAST_MESSAGE',
+          text,
+          autoSend,
+          newChat,
+          tabIds: [tabId],
+          requestId,
+          clientTs,
+          debug,
+        })
+      }
+
+      const result = response?.results?.[0]
+      if (result?.success) {
+        addStatus(t('status_sent', [failedSend.platformName]), 'success')
+      } else {
+        addStatus(t('status_failed', [failedSend.platformName, String(result?.error || t('unknown'))]), 'error')
+        // Re-add to failed sends
+        setFailedSends(prev => [...prev, { ...failedSend, timestamp: Date.now() }])
+      }
+    } catch (err) {
+      if (handleContextLoss(err)) return
+      addStatus(t('status_failed', [failedSend.platformName, String(err?.message || t('unknown'))]), 'error')
+      // Re-add to failed sends
+      setFailedSends(prev => [...prev, { ...failedSend, timestamp: Date.now() }])
+    }
+  }, [autoSend, newChat, addStatus, handleContextLoss])
+
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -773,6 +886,7 @@ export default function Popup() {
                 const selected = selectedSet.has(tab.id)
                 const platStyle = PLATFORM_STYLES[tab.platformName] || PLATFORM_STYLES.Unknown
                 const isPrimary = PRIMARY_PLATFORM_SET.has(tab.platformName)
+                const failedSend = failedSends.find(f => f.tabId === tab.id)
 
                 return (
                   <li
@@ -807,6 +921,32 @@ export default function Popup() {
                     >
                       {tab.title || tab.url}
                     </span>
+
+                    {/* Retry/Open button for failed sends */}
+                    {failedSend && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRetrySend(failedSend)
+                        }}
+                        title={failedSend.isRiskControl 
+                          ? `${t('verification_required')}: ${failedSend.text.slice(0, 30)}${failedSend.text.length > 30 ? '...' : ''}`
+                          : `${t('retry_send')}: ${failedSend.text.slice(0, 30)}${failedSend.text.length > 30 ? '...' : ''}`
+                        }
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all hover:scale-110 ${
+                          failedSend.isRiskControl
+                            ? 'bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
+                        }`}
+                      >
+                        {failedSend.isRiskControl ? (
+                          <ExternalLink className="h-3 w-3" />
+                        ) : (
+                          <RotateCcw className="h-3 w-3" />
+                        )}
+                      </button>
+                    )}
                   </li>
                 )
               })}
@@ -913,6 +1053,9 @@ export default function Popup() {
         </div>
 
       </div>
+      
+      {/* Onboarding modal */}
+      <Onboarding />
     </div>
   )
 }

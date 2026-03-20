@@ -550,41 +550,107 @@ const qianwenSend = async (el) => {
   else { el?.focus(); pressEnterOn(el); }
 };
 
-const kimiSend = async (el, options) => {
+  const kimiSend = async (el, options) => {
   const logger = options?.logger;
   const before = normalizeText(getContent(el));
-  const selectorBtn = await findSendBtnForPlatform('kimi');
-  if (selectorBtn) {
-    const innerBtn = selectorBtn.tagName !== 'BUTTON' ? selectorBtn.querySelector('button') : null;
-    (innerBtn || selectorBtn).click();
-    await sleep(400);
-    const after = normalizeText(getContent(el));
-    if (!before || after !== before) return true;
+
+  // 高频使用保护：确保输入框仍然有效
+  if (!el || !el.isConnected) {
+    logger?.debug?.('kimi-send-input-not-connected');
+    return false;
   }
-  const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
-  const findSendBtn = () => {
-    const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]') : [];
-    for (const b of buttons) {
-      const hint = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('title') || ''} ${(b.textContent || '').trim()}`.toLowerCase();
-      if (hint.includes('发送') || hint.includes('send') || hint.includes('submit') || hint.includes('提交')) return b;
+
+  // 刷新 DOM 缓存
+  invalidateDomCache();
+
+  // 高频使用冷却期：等待按钮状态稳定（Kimi 在连续发送后需要更长时间启用按钮）
+  await sleep(150);
+
+  const tryClickSend = async () => {
+    // 策略1: 使用选择器查找发送按钮（最快）
+    const selectorBtn = await findSendBtnForPlatform('kimi');
+    if (selectorBtn && !isNodeDisabled(selectorBtn)) {
+      const innerBtn = selectorBtn.tagName !== 'BUTTON' ? selectorBtn.querySelector('button:not([disabled])') : null;
+      const target = innerBtn || selectorBtn;
+      target.click();
+      await sleep(300);
+      const after = normalizeText(getContent(el));
+      if (!before || after !== before) return true;
+      logger?.debug?.('kimi-send-selector-clicked-but-no-change');
     }
-    return null;
+
+    // 策略2: 启发式查找（缩短超时，避免长时间阻塞）
+    const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
+    const findSendBtn = () => {
+      // 首先尝试精确选择器
+      const precise = container.querySelector?.('div.send-button-container:not(.disabled), [data-testid*="send"]:not([disabled])');
+      if (precise && !isNodeDisabled(precise)) return precise;
+      
+      // 然后遍历查找
+      const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]:not([aria-disabled="true"])') : [];
+      for (const b of buttons) {
+        if (isNodeDisabled(b)) continue;
+        const hint = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('title') || ''} ${b.getAttribute('data-testid') || ''} ${(b.textContent || '').trim()}`.toLowerCase();
+        if (hint.includes('发送') || hint.includes('send') || hint.includes('submit') || hint.includes('提交')) return b;
+      }
+      return null;
+    };
+
+    // 缩短等待时间到 1.5 秒，快速 fallback 到 Enter 键
+    const btn = await waitFor(findSendBtn, 1500, 60);
+    if (btn) {
+      btn.click();
+      await sleep(300);
+      const after = normalizeText(getContent(el));
+      if (!before || after !== before) return true;
+    }
+
+    return false;
   };
-  const btn = await waitFor(findSendBtn, 3500, 40);
-  if (btn) {
-    btn.click();
-    await sleep(400);
-    const after = normalizeText(getContent(el));
-    if (!before || after !== before) return true;
-  } else {
-    el?.focus();
+
+  // 尝试点击发送
+  let sent = await tryClickSend();
+
+  // 如果按钮点击失败，立即尝试 Enter 键（更可靠）
+  if (!sent && el) {
+    logger?.debug?.('kimi-send-fallback-to-enter');
+    el.focus();
+    await sleep(80);
     pressEnterOn(el);
     await sleep(400);
     const after = normalizeText(getContent(el));
-    if (!before || after !== before) return true;
+    sent = !before || after !== before;
   }
-  logger?.debug?.('kimi-send-no-change');
-  return false;
+
+  // 高频使用保护：如果还是失败，短暂等待后再次尝试 Enter
+  if (!sent && before.length > 0) {
+    logger?.debug?.('kimi-send-retry-after-failure');
+    await sleep(500);  // 增加等待时间，让 Kimi 完成内部状态更新
+
+    if (el && el.isConnected) {
+      // 重新检查输入框内容
+      const current = normalizeText(getContent(el));
+      if (current === before) {
+        // 内容还在，再次尝试 Enter
+        el.focus();
+        await sleep(100);
+        pressEnterOn(el);
+        await sleep(400);
+        const after = normalizeText(getContent(el));
+        sent = !before || after !== before;
+      } else {
+        // 内容已变，可能已发送成功
+        sent = true;
+        logger?.debug?.('kimi-send-content-changed-assume-success');
+      }
+    }
+  }
+
+  if (!sent) {
+    logger?.debug?.('kimi-send-no-change', { contentLength: before.length });
+  }
+
+  return sent;
 };
 
 const yuanbaoSend = async (el, options) => {

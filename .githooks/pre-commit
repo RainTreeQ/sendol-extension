@@ -19,8 +19,9 @@ git add \
   app/public/screenshot-light.png \
   app/public/screenshot-dark.png
 
-echo "[pre-commit] Auto-updating version + README..."
-node scripts/precommit-automation.mjs
+# echo "[pre-commit] Auto-updating version + README..."
+# node scripts/precommit-automation.mjs
+# NOTE: Version auto-bump disabled for stable release
 
 echo "[pre-commit] Staging metadata files..."
 git add README.md manifest.json package.json app/package.json

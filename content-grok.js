@@ -32,7 +32,27 @@
       },
       async send(el, options) {
         const expected = normalizeText(options?.text || "");
-        const btn = await findSendBtnForPlatform("grok") || await waitFor(() => findSendBtnHeuristically(el), 3e3, 40);
+        let btn = await findSendBtnForPlatform("grok") || await waitFor(() => findSendBtnHeuristically(el), 3e3, 40);
+        if (!btn) {
+          btn = await waitFor(() => {
+            const selectors = [
+              '[data-testid="send-button"]',
+              '[data-testid*="send"]',
+              '[aria-label*="Send" i]',
+              '[aria-label*="\u53D1\u9001" i]',
+              '[aria-label*="submit" i]',
+              '[title*="Send" i]',
+              'button[class*="send" i]'
+            ];
+            for (const sel of selectors) {
+              const found = document.querySelector(sel);
+              if (found && !found.disabled && found.getAttribute("aria-disabled") !== "true") {
+                return found;
+              }
+            }
+            return null;
+          }, 2e3, 40);
+        }
         if (btn) {
           if (el?.tagName === "TEXTAREA" && expected) {
             setReactValue(el, expected);

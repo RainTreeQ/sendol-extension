@@ -283,7 +283,10 @@
             }
             if (autoSend) {
               stage = "send";
-              await waitForSendReady(platformId, input);
+              const sendReadyTimeout = 400;
+              const waitStart = now();
+              await waitForSendReady(platformId, input, sendReadyTimeout);
+              logger?.debug?.("kimi-send-ready-wait", { waitMs: now() - waitStart });
               const sendStartedAt = now();
               const sendResult = await adapter.send(input, { logger, debug, text, safeMode });
               if (sendResult === false) {
