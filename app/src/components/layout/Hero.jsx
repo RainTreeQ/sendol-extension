@@ -677,13 +677,13 @@ export function Hero() {
                 {/* Content Area */}
                 <div className="p-4 flex flex-col gap-3 relative z-10 flex-1">
                   {/* Three rectangular blocks */}
-                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                     <div className="h-2 w-3/4 bg-foreground/15 rounded-full" />
                   </div>
-                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                     <div className="h-2 w-1/2 bg-foreground/15 rounded-full" />
                   </div>
-                  <div className="h-8 bg-muted/40 rounded-lg border border-border/40 flex items-center px-3 shadow-inner">
+                  <div className="h-8 bg-card rounded-lg border border-border/40 flex items-center px-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                     <div className="h-2 w-full bg-foreground/15 rounded-full" />
                   </div>
 
