@@ -59,10 +59,10 @@ export function Footer() {
         </div>
         
         <nav aria-label={copy.footerNav} className="flex flex-wrap justify-center md:justify-end gap-x-6 gap-y-3">
-          <button onClick={(e) => handleScrollTo(e, "pricing")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={(e) => handleScrollTo(e, "pricing")} className="text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
             {copy.pricing}
           </button>
-          <button onClick={(e) => handleScrollTo(e, "support")} className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <button onClick={(e) => handleScrollTo(e, "support")} className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
             {copy.support}
             <Heart className="h-3.5 w-3.5" />
           </button>
