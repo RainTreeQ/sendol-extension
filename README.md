@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-20 13:45 | v1.2.10 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4faeef286c6 -->
 - 2026-03-20 13:37 | v1.2.9 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:db1d9337733a -->
 - 2026-03-20 13:33 | v1.2.8 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:696f7b7f9722 -->
 - 2026-03-20 13:24 | v1.2.7 (PATCH) | Core | `tests/site/navigation.spec.js`, `tests/site/playwright.config.js`, `tests/site/theme.spec.js` <!-- auto:a0a58406d9b2 -->
@@ -37,7 +38,6 @@
 - 2026-03-19 16:57 | v1.2.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:fd2dd3ab6243 -->
 - 2026-03-19 16:56 | v1.2.0 (MINOR) | Popup UI / Background / Manifest/Permissions / Tooling | `app/src/popup/Popup.jsx`, `background.js`, `manifest.json`, `scripts/build-content.mjs`, `scripts/discover-selectors.mjs`, `scripts/validate-selectors.mjs` <!-- auto:f102f013fcf6 -->
 - 2026-03-19 16:52 | v1.1.1 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:0fa25d290a90 -->
-- 2026-03-19 16:48 | v1.1.0 (MINOR) | Core | `app/src/components/ShapeGrid.jsx`, `app/src/components/landing/HeroShapeGrid.jsx`, `playwright-report/index.html`, `test-results/.last-run.json` <!-- auto:85bf8b1857a9 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

@@ -667,10 +667,7 @@ export function Hero() {
                 
                 {/* Header */}
                 <div className="h-12 border-b border-border/40 flex items-center justify-between px-4 relative z-10">
-                  <div className="flex items-center gap-2 text-foreground/80">
-                    <Send className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-semibold tracking-tight">Sendol</span>
-                  </div>
+                  <span className="text-sm font-semibold tracking-tight text-foreground/90">Sendol</span>
                   <div className="flex gap-1.5">
                     <div className="w-4 h-4 rounded-md bg-muted/60" />
                     <div className="w-4 h-4 rounded-md bg-muted/60" />
@@ -679,9 +676,8 @@ export function Hero() {
                 
                 {/* Text Area */}
                 <div className="p-4 pb-2 relative z-10">
-                  <div className="h-24 bg-muted/30 rounded-xl border border-border/40 p-3 shadow-inner flex flex-col gap-2.5">
+                  <div className="h-[72px] bg-muted/30 rounded-xl border border-border/40 p-3 shadow-inner flex flex-col gap-2.5">
                     <div className="h-2 w-3/4 bg-foreground/20 rounded-full" />
-                    <div className="h-2 w-full bg-foreground/20 rounded-full" />
                     <div className="h-2 w-1/2 bg-foreground/20 rounded-full" />
                   </div>
                 </div>
@@ -696,9 +692,11 @@ export function Hero() {
                 </div>
 
                 {/* Footer */}
-                <div className="h-14 px-4 flex items-center justify-between relative z-10 border-t border-border/30 mt-2 bg-muted/10">
-                  <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
-                    <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
+                <div className="h-[60px] px-4 flex items-center justify-between relative z-10 mt-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-4 bg-muted-foreground/30 rounded-full flex items-center p-[2px]">
+                      <div className="w-3 h-3 bg-background rounded-full shadow-sm" />
+                    </div>
                   </div>
                   <div className="w-9 h-9 bg-primary rounded-full shadow-md flex items-center justify-center text-primary-foreground hover:scale-105 transition-transform">
                     <ArrowUp className="w-4 h-4" strokeWidth={3} />
