@@ -593,7 +593,7 @@ export function Hero() {
 
         {/* Plugin UI showcase - completely unboxed, floating feeling */}
         <div className="relative mx-auto max-w-[420px] z-10 -mt-4 md:-mt-8 mb-24 perspective-1000">
-          <div className="relative rounded-2xl md:rounded-[2rem] overflow-hidden border border-foreground/10 bg-background/40 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.05)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 ease-out hover:scale-[1.03] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.1)]">
+          <div className="relative rounded-2xl md:rounded-[2rem] overflow-hidden border border-foreground/10 bg-background/40 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(255,255,255,0.05)] ring-1 ring-black/5 dark:ring-white/5 transition-transform duration-700 ease-out hover:scale-[1.03] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_30px_70px_-20px_rgba(255,255,255,0.1)]">
             <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-transparent pointer-events-none z-20" />
             <img 
               src={screenshotSrc} 
@@ -602,8 +602,8 @@ export function Hero() {
             />
             
             {/* Glass reflection effect */}
-            <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-white/30 to-transparent z-20" />
-            <div className="absolute inset-y-0 left-0 w-px bg-linear-to-b from-white/20 via-transparent to-transparent z-20" />
+            <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-black/10 dark:via-white/30 to-transparent z-20" />
+            <div className="absolute inset-y-0 left-0 w-px bg-linear-to-b from-black/5 dark:from-white/20 via-transparent to-transparent z-20" />
           </div>
 
           {/* Decorative glow behind the image - made more concentrated for smaller image */}
@@ -636,7 +636,7 @@ export function Hero() {
             </p>
           </div>
 
-          <div className="max-w-6xl mx-auto w-full relative min-h-[500px] lg:aspect-[21/9] rounded-[32px] bg-muted/30 overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-white/10 dark:ring-white/5 transition-transform duration-700 hover:scale-[1.01]">
+          <div className="max-w-6xl mx-auto w-full relative min-h-[500px] lg:aspect-[21/9] rounded-[32px] bg-muted/30 overflow-hidden border border-border/40 shadow-[0_30px_60px_-35px_rgba(0,0,0,0.4)] dark:shadow-[0_20px_60px_-25px_rgba(255,255,255,0.06)] ring-1 ring-black/5 dark:ring-white/5 transition-transform duration-700 hover:scale-[1.01]">
             <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
             {/* Simulated split screen mockup */}
             <div className="absolute inset-x-2 inset-y-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -656,15 +656,15 @@ export function Hero() {
                     <span className="text-xs font-medium text-foreground/60 mx-auto tracking-wide">{ai.name}</span>
                   </div>
                   <div className="flex-1 p-6 flex flex-col gap-4">
-                    <div className={`h-3.5 w-${ai.width1} rounded-full bg-primary/20 self-end shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
-                    <div className={`h-3.5 w-${ai.width2} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
-                    <div className={`h-3.5 w-${ai.width3} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />
-                    {ai.width4 && <div className={`h-3.5 w-${ai.width4} rounded-full bg-muted/80 mt-2 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)]`} />}
+                    <div className={`h-3.5 w-${ai.width1} rounded-full bg-primary/20 self-end shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`} />
+                    <div className={`h-3.5 w-${ai.width2} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`} />
+                    <div className={`h-3.5 w-${ai.width3} rounded-full bg-muted/80 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`} />
+                    {ai.width4 && <div className={`h-3.5 w-${ai.width4} rounded-full bg-muted/80 mt-2 shadow-[inset_0_1px_1px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]`} />}
                   </div>
                 </div>
               ))}
               {/* Central Sendol Popup overlay */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] bg-background/95 backdrop-blur-xl rounded-2xl border border-border/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-10px_rgba(255,255,255,0.15)] flex flex-col overflow-hidden ring-1 ring-white/10 dark:ring-white/5 z-10 transition-transform duration-500 hover:scale-105">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] bg-background/95 backdrop-blur-xl rounded-2xl border border-border/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_-10px_rgba(255,255,255,0.15)] flex flex-col overflow-hidden ring-1 ring-black/5 dark:ring-white/5 z-10 transition-transform duration-500 hover:scale-105">
                 <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent mix-blend-overlay pointer-events-none" />
                 
                 {/* Header */}
@@ -724,7 +724,7 @@ export function Hero() {
 
           <div className="grid gap-12 md:grid-cols-3 max-w-6xl mx-auto px-4">
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner ring-1 ring-primary/20">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
                 <Wallet className="h-7 w-7" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureOneTitle}</h3>
@@ -732,7 +732,7 @@ export function Hero() {
             </div>
             
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner ring-1 ring-primary/20">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
                 <ShieldCheck className="h-7 w-7" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureTwoTitle}</h3>
@@ -740,7 +740,7 @@ export function Hero() {
             </div>
             
             <div className="flex flex-col gap-5">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner ring-1 ring-primary/20">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] ring-1 ring-primary/20">
                 <Sparkles className="h-7 w-7" />
               </div>
               <h3 className="text-xl font-semibold text-foreground tracking-tight">{copy.featureThreeTitle}</h3>
@@ -760,7 +760,7 @@ export function Hero() {
           <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto px-4">
             <div className="flex flex-col h-full bg-card rounded-[24px] border border-border/40 shadow-sm p-8 transition-transform hover:-translate-y-1 hover:shadow-md">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner">
+                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
                   <Coins className="h-5 w-5" />
                 </div>
                 <div>
@@ -783,7 +783,7 @@ export function Hero() {
                 Coming Soon
               </div>
               <div className="flex items-center gap-3 mb-4 relative z-10">
-                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-inner">
+                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
                   <Crown className="h-5 w-5" />
                 </div>
                 <div>
@@ -802,7 +802,7 @@ export function Hero() {
 
             <div className="flex flex-col h-full bg-card rounded-[24px] border border-border/40 shadow-sm p-8 transition-transform hover:-translate-y-1 hover:shadow-md">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner">
+                <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-foreground shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
                   <HandHeart className="h-5 w-5" />
                 </div>
                 <div>
@@ -864,7 +864,7 @@ export function Hero() {
           <div className="grid gap-12 md:grid-cols-2 max-w-5xl mx-auto px-4">
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                   <Languages className="h-5 w-5" />
                 </div>
                 <h3 className="text-xl font-semibold tracking-tight">{copy.languageTitle}</h3>
@@ -885,7 +885,7 @@ export function Hero() {
 
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                   <Globe className="h-5 w-5" />
                 </div>
                 <h3 className="text-xl font-semibold tracking-tight">{copy.roadmapTitle}</h3>
