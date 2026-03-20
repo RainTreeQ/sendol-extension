@@ -26,6 +26,7 @@
 ## 🔄 Recent Updates / 自动更新
 
 <!-- AUTO_README_UPDATES_START -->
+- 2026-03-20 14:41 | v1.2.20 (PATCH) | Core | `app/src/components/layout/Header.jsx` <!-- auto:bba3fd0c7f45 -->
 - 2026-03-20 14:39 | v1.2.19 (PATCH) | Tooling | `scripts/capture-popup-screenshot.mjs` <!-- auto:c0008c4646d5 -->
 - 2026-03-20 14:25 | v1.2.18 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:5ed6e7de1d74 -->
 - 2026-03-20 14:22 | v1.2.17 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:978f7e67ef4e -->
@@ -37,7 +38,6 @@
 - 2026-03-20 13:46 | v1.2.11 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:47c9fe3130a6 -->
 - 2026-03-20 13:45 | v1.2.10 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:c4faeef286c6 -->
 - 2026-03-20 13:37 | v1.2.9 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:db1d9337733a -->
-- 2026-03-20 13:33 | v1.2.8 (PATCH) | Core | `app/src/components/layout/Hero.jsx` <!-- auto:696f7b7f9722 -->
 <!-- AUTO_README_UPDATES_END -->
 
 ---

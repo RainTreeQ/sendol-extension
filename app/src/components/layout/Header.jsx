@@ -87,7 +87,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/85 backdrop-blur-xl">
       <div className="container flex h-14 items-center justify-between gap-2 px-4 md:px-6">
         <Link to="/" className="flex items-center gap-2 font-semibold text-foreground">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background shadow-[0_8px_16px_-12px_rgba(0,0,0,0.75)] [--logo-divider:#000] dark:[--logo-divider:var(--color-zinc-100)]">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background shadow-[0_8px_16px_-12px_rgba(0,0,0,0.75)] [--logo-divider:#000] dark:[--logo-divider:var(--color-zinc-900)]">
             <LogoIcon className="h-4 w-4" />
           </span>
           <span className="text-base tracking-tight">Sendol</span>
