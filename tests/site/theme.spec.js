@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Theme Switching', () => {
   test('Should switch between Light and Dark mode', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/');
     
     // Initial theme (system)
     const html = page.locator('html');

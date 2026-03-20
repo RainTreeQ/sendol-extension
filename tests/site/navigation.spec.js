@@ -13,7 +13,7 @@ test.describe('Navigation', () => {
 
   for (const p of pages) {
     test(`Should navigate to ${p.path} and check title`, async ({ page }) => {
-      await page.goto(`/#${p.path}`);
+      await page.goto(`${p.path === '/' ? '/' : `/#${p.path.slice(1)}`}`);
       await expect(page.locator('h1').first()).toBeVisible();
       if (p.path !== '/') {
         await expect(page).toHaveTitle(new RegExp(p.title));
@@ -22,14 +22,14 @@ test.describe('Navigation', () => {
   }
 
   test('Should navigate using Header links', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/');
     await page.click('text=FAQ');
     await expect(page).toHaveURL(/.*#\/faq/);
     await expect(page.locator('h1').first()).toContainText('Frequently');
   });
 
   test('Should navigate using Footer links', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/');
     // Scroll to bottom to ensure footer is visible
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     
