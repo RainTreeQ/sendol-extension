@@ -6,9 +6,11 @@
     "textarea"
   ],
   "findSendBtn": [
-    "button[type=\"submit\"]",
+    "button[type=\"submit\"]:not([disabled])",
+    "button[class*=\"send\"]:not([disabled])",
     "button[aria-label*=\"发送\"]",
     "button[aria-label*=\"Send\"]",
-    "button[data-testid*=\"send\"]"
+    "button[data-testid*=\"send\"]",
+    "form button[type=\"submit\"]"
   ]
 }

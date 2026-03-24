@@ -10,6 +10,7 @@
           return this.currentOperation.promise;
         }
         await this.currentOperation.promise.catch(() => {
+          // Lock released by previous operation, continue to acquire
         });
       }
       const timeoutPromise = new Promise((_, reject) => {
@@ -710,7 +711,7 @@
       return verifyContent(el, text);
     }
     async function tryDirectDom(el, text) {
-      el.innerHTML = "";
+      el.replaceChildren();
       const p = document.createElement("p");
       p.textContent = text;
       el.appendChild(p);
@@ -896,7 +897,7 @@
         logger?.debug?.("gemini-insertText-retry-failed", { error: err?.message });
       }
       try {
-        el.innerHTML = "";
+        el.replaceChildren();
         const p = document.createElement("p");
         p.textContent = text;
         el.appendChild(p);

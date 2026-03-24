@@ -8,6 +8,9 @@
   ],
   "findSendBtn": [
     "button[aria-label=\"Send Message\"]",
-    "button[aria-label*=\"Send\"]"
+    "button[aria-label*=\"Send\"]",
+    "button[class*=\"send\"]:not([disabled])",
+    "form button[type=\"submit\"]:not([disabled])",
+    "button[data-testid*=\"send\"]"
   ]
 }

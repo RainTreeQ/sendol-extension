@@ -119,13 +119,19 @@
       findInput: [
         "#prompt-textarea",
         'div[contenteditable="true"][data-lexical-editor]',
-        'div[contenteditable="true"][role="textbox"]'
+        'div[contenteditable="true"][role="textbox"]',
+        'div[contenteditable="true"]'
       ],
       findSendBtn: [
         '[data-testid="send-button"]',
+        '[data-testid*="send"]',
         'button[aria-label="Send prompt"]',
         'button[aria-label="Send message"]',
-        'button[aria-label*="Send"]'
+        'button[aria-label*="Send"]',
+        'button[class*="send"]:not([disabled])',
+        'form button[type="submit"]:not([disabled])',
+        'button[aria-label="发送"]',
+        'button[aria-label*="发送"]'
       ]
     },
     claude: {
@@ -1030,7 +1036,7 @@
       return verifyContent(el, text);
     }
     async function tryDirectDom(el, text) {
-      el.innerHTML = "";
+      el.replaceChildren();
       const p = document.createElement("p");
       p.textContent = text;
       el.appendChild(p);
@@ -1177,7 +1183,7 @@
         notifyGeminiFramework(el, text);
         return { strategy: "gemini-insertText-retry", fallbackUsed: true };
       }
-      el.innerHTML = "";
+      el.replaceChildren();
       const p = document.createElement("p");
       p.textContent = text;
       el.appendChild(p);
@@ -1630,7 +1636,7 @@
     window.__aiBroadcastLoaded = true;
     const hostname = window.location.hostname;
     const normalizedHostname = String(hostname || "").toLowerCase().replace(/^www\./, "");
-    async function waitForSendReady(platformId, input, timeout = 260) {
+    async function waitForSendReady(platformId, input, timeout = 800) {
       if (!platformId) return false;
       const startedAt = now();
       while (now() - startedAt < timeout) {
@@ -1638,7 +1644,7 @@
         if (bySelector && !isNodeDisabled(bySelector)) return true;
         const heuristic = await findSendBtnHeuristically(input);
         if (heuristic && !isNodeDisabled(heuristic)) return true;
-        await sleep(20);
+        await sleep(40);
       }
       return false;
     }

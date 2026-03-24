@@ -3,12 +3,18 @@
   "findInput": [
     "#prompt-textarea",
     "div[contenteditable=\"true\"][data-lexical-editor]",
-    "div[contenteditable=\"true\"][role=\"textbox\"]"
+    "div[contenteditable=\"true\"][role=\"textbox\"]",
+    "div[contenteditable=\"true\"]"
   ],
   "findSendBtn": [
     "[data-testid=\"send-button\"]",
+    "[data-testid*=\"send\"]",
     "button[aria-label=\"Send prompt\"]",
     "button[aria-label=\"Send message\"]",
-    "button[aria-label*=\"Send\"]"
+    "button[aria-label*=\"Send\"]",
+    "button[class*=\"send\"]:not([disabled])",
+    "form button[type=\"submit\"]:not([disabled])",
+    "button[aria-label=\"发送\"]",
+    "button[aria-label*=\"发送\"]"
   ]
 }

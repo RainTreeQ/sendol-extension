@@ -7,9 +7,11 @@
     "div[contenteditable=\"true\"]"
   ],
   "findSendBtn": [
-    "button[type=\"submit\"]",
+    "button[type=\"submit\"]:not([disabled])",
+    "button[class*=\"send\"]:not([disabled])",
     "button[aria-label*=\"Send\"]",
     "button[aria-label*=\"Submit\"]",
-    "button[data-testid*=\"send\"]"
+    "button[data-testid*=\"send\"]",
+    "form button[type=\"submit\"]"
   ]
 }
