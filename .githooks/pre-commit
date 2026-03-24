@@ -6,7 +6,8 @@ echo "[pre-commit] 🔒 Running security checks..."
 # Security: Prevent accidental commit of sensitive files
 SENSITIVE_FILES=".auth/storage-state.json .env .env.local"
 for file in $SENSITIVE_FILES; do
-    if git diff --cached --name-only | grep -q "$file"; then
+    # Check for actual .env files, but allow .env.example templates
+    if git diff --cached --name-only | grep -E "^${file}$" | grep -v "\.env\.example$" | grep -q .; then
         echo "❌ [pre-commit] ERROR: Attempting to commit sensitive file: $file"
         echo "   This file contains authentication tokens and should NEVER be committed."
         echo "   To bypass (NOT recommended): git commit --no-verify"

@@ -9,7 +9,6 @@
     "dev:design-system": "vite --config vite.design-system.config.js",
     "build": "npm run build:extension",
     "build:extension": "vite build --config vite.extension.config.js",
-    "build:site": "vite build --config vite.site.config.js",
     "build:design-system": "vite build --config vite.design-system.config.js",
     "lint": "eslint .",
     "preview": "vite preview"
