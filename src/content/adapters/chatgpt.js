@@ -74,8 +74,21 @@ export function createChatgptAdapter(deps) {
       const logger = options?.logger;
       const expected = normalizeText(options?.text || '');
 
-      const before = normalizeText(getContent(el));
-      logger?.debug?.('chatgpt-send-start', { hasContent: before.length > 0, contentLen: before.length, expectedLen: expected.length });
+      // 防御性等待：确保Lexical状态同步完成
+      // 初次加载时，Lexical可能需要额外时间将DOM内容同步到内部状态
+      let before = normalizeText(getContent(el));
+      if (expected && expected.length > 0) {
+        let syncChecks = 0;
+        // 如果内容为空，短暂等待让Lexical完成同步（最多等300ms）
+        while (syncChecks < 3 && before.length === 0) {
+          await sleep(100);
+          before = normalizeText(getContent(el));
+          syncChecks++;
+        }
+        logger?.debug?.('chatgpt-send-start', { hasContent: before.length > 0, contentLen: before.length, expectedLen: expected.length, syncChecks });
+      } else {
+        logger?.debug?.('chatgpt-send-start', { hasContent: before.length > 0, contentLen: before.length, expectedLen: 0 });
+      }
 
       // 扩展搜索范围：先在输入框附近找，再用选择器
       const findNearbySendBtn = () => {

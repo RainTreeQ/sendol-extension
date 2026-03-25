@@ -61,21 +61,55 @@
       async send(el, options) {
         const logger = options?.logger;
         const expected = normalizeText(options?.text || "");
-        const before = normalizeText(getContent(el));
-        logger?.debug?.("chatgpt-send-start", { hasContent: before.length > 0, contentLen: before.length, expectedLen: expected.length });
+        let before = normalizeText(getContent(el));
+        if (expected && expected.length > 0) {
+          let syncChecks = 0;
+          while (syncChecks < 3 && before.length === 0) {
+            await sleep(100);
+            before = normalizeText(getContent(el));
+            syncChecks++;
+          }
+          logger?.debug?.("chatgpt-send-start", { hasContent: before.length > 0, contentLen: before.length, expectedLen: expected.length, syncChecks });
+        } else {
+          logger?.debug?.("chatgpt-send-start", { hasContent: before.length > 0, contentLen: before.length, expectedLen: 0 });
+        }
+        const findNearbySendBtn = () => {
+          if (!el?.getBoundingClientRect) return null;
+          const rect = el.getBoundingClientRect();
+          const nodes = document.querySelectorAll('button:not([disabled]), [role="button"]');
+          let best = null;
+          let bestScore = -Infinity;
+          for (const node of nodes) {
+            if (!node || node.disabled || node.getAttribute("aria-disabled") === "true") continue;
+            const hint = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("title") || ""} ${(node.textContent || "").trim()}`.toLowerCase();
+            if (hint.includes("login") || hint.includes("log in") || hint.includes("search") || hint.includes("upload") || hint.includes("attach")) continue;
+            const nr = node.getBoundingClientRect();
+            const dx = nr.left + nr.width / 2 - (rect.left + rect.width);
+            const dy = nr.top + nr.height / 2 - (rect.top + rect.height / 2);
+            if (dx < -50 || dx > 400 || Math.abs(dy) > 200) continue;
+            const semanticScore = hint.includes("send") || hint.includes("submit") || hint.includes("\u53D1\u9001") || hint.includes("\u63D0\u4EA4") ? 50 : 0;
+            const svgScore = node.querySelector("svg") ? 20 : 0;
+            const score = semanticScore + svgScore - Math.abs(dx) * 0.2 - Math.abs(dy) * 0.1;
+            if (score > bestScore) {
+              bestScore = score;
+              best = node;
+            }
+          }
+          return best;
+        };
         const selectorCandidate = await findSendBtnForPlatform("chatgpt");
         const isReady = (b) => b && !b.disabled && b.getAttribute("aria-disabled") !== "true";
         const btn = await waitFor(
           () => {
-            const b = selectorCandidate || findSendBtnHeuristically(el);
+            const b = selectorCandidate || findSendBtnHeuristically(el) || findNearbySendBtn();
             return isReady(b) ? b : null;
           },
-          5e3,
-          80
+          8e3,
+          100
         );
         if (btn) {
           btn.click();
-          await sleep(300);
+          await sleep(400);
           const after = normalizeText(getContent(el));
           if (before.length > 0 && after.length < before.length) {
             logger?.debug?.("chatgpt-send-click-success", { beforeLen: before.length, afterLen: after.length });
@@ -94,7 +128,7 @@
           target.focus();
           const beforeKey = normalizeText(getContent(target)).length;
           pressEnterOn(target);
-          await sleep(300);
+          await sleep(400);
           const afterKey = normalizeText(getContent(target)).length;
           if (beforeKey > 0 && afterKey < beforeKey) {
             logger?.debug?.("chatgpt-send-keyboard-success", { beforeLen: beforeKey, afterLen: afterKey });
@@ -102,7 +136,26 @@
           }
         } else {
           pressEnterOn(null);
+          await sleep(400);
+        }
+        if (target) {
+          target.focus();
+          target.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            ctrlKey: true
+          }));
           await sleep(300);
+          const afterCtrl = normalizeText(getContent(target)).length;
+          if (before.length > 0 && afterCtrl < before.length) {
+            logger?.debug?.("chatgpt-send-ctrl-enter-success");
+            return true;
+          }
         }
         logger?.debug?.("chatgpt-send-failed");
         return false;
