@@ -469,34 +469,76 @@ export function createInjectionTools(deps) {
     return setQianwenInput(el, text, options);
   };
 
+  // 随机延迟工具函数 - 模拟人类打字的不确定性
+  const randomDelay = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
   const kimiInject = async (el, text, options) => {
     if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') return setReactValue(el, text);
     const { logger } = options || {};
 
-    // 策略1: Slate 编辑器专用 - 使用 beforeinput/input 事件链
+    // 策略1: 模拟人类输入 - 使用更自然的输入模式
+    const tryKimiHumanLikeInput = async () => {
+      el.focus();
+      // 人类点击后的反应时间：80-200ms
+      await sleep(randomDelay(80, 200));
+
+      // 清除现有内容 - 使用 selectAll + delete 模拟人类行为
+      document.execCommand('selectAll', false, null);
+      await sleep(randomDelay(30, 80));
+      document.execCommand('delete', false, null);
+      await sleep(randomDelay(50, 120));
+
+      // 分段输入，模拟人类打字节奏
+      // 人类打字速度：平均每秒 3-5 个字符（中文）
+      const chunkSize = text.length > 50 ? randomDelay(3, 8) : 1;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        const chunk = text.slice(i, i + chunkSize);
+        document.execCommand('insertText', false, chunk);
+        
+        // 随机间隔：30-150ms 模拟人类打字间隔
+        // 偶尔停顿更久（模拟思考）
+        const thinkPause = Math.random() < 0.05 ? randomDelay(200, 500) : 0;
+        await sleep(randomDelay(30, 120) + thinkPause);
+      }
+
+      // 输入完成后短暂停顿
+      await sleep(randomDelay(50, 150));
+
+      // 触发 input 事件（但不要太频繁）
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true
+      }));
+
+      return verifyContent(el, text, 400, 30);
+    };
+
+    // 策略2: Slate 编辑器专用 - 减少事件频率，更像人类
     const tryKimiSlateInput = async () => {
       const isSlate = el.hasAttribute('data-slate-editor') || el.closest('[data-slate-editor="true"]');
       if (!isSlate) return false;
 
       el.focus();
-      await sleep(20);
+      await sleep(randomDelay(100, 250));
 
       // 清除现有内容
       const sel = window.getSelection();
       if (sel && el.childNodes.length > 0) {
         try {
           sel.selectAllChildren(el);
+          await sleep(randomDelay(30, 80));
           el.dispatchEvent(new InputEvent('beforeinput', {
             inputType: 'deleteContentBackward',
             bubbles: true,
             cancelable: true
           }));
-          await sleep(10);
+          await sleep(randomDelay(50, 100));
         } catch (_) {}
       }
 
-      // 分段输入文本（避免大文本性能问题）
-      const chunkSize = text.length > 100 ? 20 : 1;
+      // 分段输入，更大的间隔，更像人类
+      const chunkSize = text.length > 100 ? randomDelay(8, 15) : randomDelay(2, 5);
       for (let i = 0; i < text.length; i += chunkSize) {
         const chunk = text.slice(i, i + chunkSize);
         el.dispatchEvent(new InputEvent('beforeinput', {
@@ -510,10 +552,12 @@ export function createInjectionTools(deps) {
           data: chunk,
           bubbles: true
         }));
-        if (i % 100 === 0) await sleep(2);
+        // 人类不会每100字符就休息，而是随机间隔
+        await sleep(randomDelay(40, 180));
       }
 
-      // 触发最终 input 和 change 事件
+      // 触发最终事件
+      await sleep(randomDelay(80, 200));
       el.dispatchEvent(new InputEvent('input', {
         inputType: 'insertText',
         data: text,
@@ -521,72 +565,49 @@ export function createInjectionTools(deps) {
       }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
 
-      return verifyContent(el, text, 350, 25);
+      return verifyContent(el, text, 400, 30);
     };
 
-    // 策略2: 改进的 paste 策略 - 更完整的事件链
-    const tryKimiPaste = async () => {
-      el.focus();
-      await sleep(20);
-
-      // 触发 beforeinput 删除事件
-      el.dispatchEvent(new InputEvent('beforeinput', {
-        inputType: 'deleteContentBackward',
-        bubbles: true,
-        cancelable: true
-      }));
-
-      document.execCommand('selectAll', false, null);
-      document.execCommand('delete', false, null);
-
-      const dt = new DataTransfer();
-      dt.setData('text/plain', text);
-      dt.setData('text/html', `<p>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`);
-
-      el.dispatchEvent(new ClipboardEvent('paste', {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true,
-        composed: true
-      }));
-
-      // 触发后续事件确保框架检测到变化
-      await sleep(30);
-      el.dispatchEvent(new InputEvent('input', {
-        inputType: 'insertText',
-        data: text,
-        bubbles: true
-      }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-
-      return verifyContent(el, text, 350, 25);
-    };
-
-    // 策略3: 标准的 insertText
+    // 策略3: 标准的 insertText（不使用剪贴板，避免被检测）
     const tryKimiInsertText = async () => {
       el.focus();
-      await sleep(10);
+      await sleep(randomDelay(80, 180));
       document.execCommand('selectAll', false, null);
+      await sleep(randomDelay(40, 100));
       document.execCommand('delete', false, null);
+      await sleep(randomDelay(60, 150));
       document.execCommand('insertText', false, text);
+      await sleep(randomDelay(80, 200));
 
-      // 额外触发 input 事件
+      // 只触发一次 input 事件
       el.dispatchEvent(new InputEvent('input', {
         inputType: 'insertText',
         data: text,
         bubbles: true
       }));
 
+      return verifyContent(el, text, 350, 30);
+    };
+
+    // 策略4: 最后 fallback - 直接 DOM 操作（最不自然，但最可靠）
+    const tryKimiDirectDom = async () => {
+      el.focus();
+      await sleep(randomDelay(100, 250));
+      el.innerHTML = '';
+      const p = document.createElement('p');
+      p.textContent = text;
+      el.appendChild(p);
+      await sleep(randomDelay(80, 200));
+      el.dispatchEvent(new InputEvent('input', { bubbles: true }));
       return verifyContent(el, text, 300, 25);
     };
 
+    // 注意：移除了所有剪贴板相关策略，避免被检测
     return runStrategies(el, [
+      { name: 'kimi-human-like', fallbackUsed: false, run: tryKimiHumanLikeInput },
       { name: 'kimi-slate-input', fallbackUsed: false, run: tryKimiSlateInput },
-      { name: 'kimi-paste', fallbackUsed: false, run: tryKimiPaste },
       { name: 'kimi-insertText', fallbackUsed: false, run: tryKimiInsertText },
-      { name: 'kimi-clipboard', fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
-      { name: 'kimi-datatransfer', fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
-      { name: 'kimi-direct-dom', fallbackUsed: true, run: () => tryDirectDom(el, text) }
+      { name: 'kimi-direct-dom', fallbackUsed: true, run: tryKimiDirectDom }
     ], logger);
   };
 

@@ -550,6 +550,9 @@ const qianwenSend = async (el) => {
   else { el?.focus(); pressEnterOn(el); }
 };
 
+  // 随机延迟工具函数
+  const randomDelay = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
   const kimiSend = async (el, options) => {
   const logger = options?.logger;
   const before = normalizeText(getContent(el));
@@ -563,30 +566,33 @@ const qianwenSend = async (el) => {
   // 刷新 DOM 缓存
   invalidateDomCache();
 
-  // 高频使用冷却期：等待按钮状态稳定（Kimi 在连续发送后需要更长时间启用按钮）
-  await sleep(150);
+  // 人类在输入后通常会停顿一下再发送（200-600ms）
+  await sleep(randomDelay(200, 600));
 
   const tryClickSend = async () => {
-    // 策略1: 使用选择器查找发送按钮（最快）
+    // 策略1: 使用选择器查找发送按钮
     const selectorBtn = await findSendBtnForPlatform('kimi');
     if (selectorBtn && !isNodeDisabled(selectorBtn)) {
       const innerBtn = selectorBtn.tagName !== 'BUTTON' ? selectorBtn.querySelector('button:not([disabled])') : null;
       const target = innerBtn || selectorBtn;
+      
+      // 人类点击前会有短暂停顿
+      await sleep(randomDelay(50, 150));
       target.click();
-      await sleep(300);
+      
+      // 点击后等待响应（人类会等待）
+      await sleep(randomDelay(400, 800));
       const after = normalizeText(getContent(el));
       if (!before || after !== before) return true;
       logger?.debug?.('kimi-send-selector-clicked-but-no-change');
     }
 
-    // 策略2: 启发式查找（缩短超时，避免长时间阻塞）
+    // 策略2: 启发式查找
     const container = el?.closest('form') || el?.closest('div[class*="input"]') || el?.closest('div[class*="chat"]') || document;
     const findSendBtn = () => {
-      // 首先尝试精确选择器
       const precise = container.querySelector?.('div.send-button-container:not(.disabled), [data-testid*="send"]:not([disabled])');
       if (precise && !isNodeDisabled(precise)) return precise;
       
-      // 然后遍历查找
       const buttons = container.querySelectorAll ? container.querySelectorAll('button:not([disabled]), [role="button"]:not([aria-disabled="true"])') : [];
       for (const b of buttons) {
         if (isNodeDisabled(b)) continue;
@@ -596,11 +602,12 @@ const qianwenSend = async (el) => {
       return null;
     };
 
-    // 缩短等待时间到 1.5 秒，快速 fallback 到 Enter 键
-    const btn = await waitFor(findSendBtn, 1500, 60);
+    // 等待按钮可用（人类会等待按钮亮起）
+    const btn = await waitFor(findSendBtn, 2000, 80);
     if (btn) {
+      await sleep(randomDelay(80, 200)); // 找到按钮后停顿一下
       btn.click();
-      await sleep(300);
+      await sleep(randomDelay(400, 800));
       const after = normalizeText(getContent(el));
       if (!before || after !== before) return true;
     }
@@ -611,31 +618,31 @@ const qianwenSend = async (el) => {
   // 尝试点击发送
   let sent = await tryClickSend();
 
-  // 如果按钮点击失败，立即尝试 Enter 键（更可靠）
+  // 如果按钮点击失败，尝试 Enter 键（人类也会这样做）
   if (!sent && el) {
     logger?.debug?.('kimi-send-fallback-to-enter');
     el.focus();
-    await sleep(80);
+    await sleep(randomDelay(100, 250));
     pressEnterOn(el);
-    await sleep(400);
+    await sleep(randomDelay(500, 900));
     const after = normalizeText(getContent(el));
     sent = !before || after !== before;
   }
 
-  // 高频使用保护：如果还是失败，短暂等待后再次尝试 Enter
+  // 如果还是失败，增加更长的冷却期再重试（模拟人类困惑后的再次尝试）
   if (!sent && before.length > 0) {
     logger?.debug?.('kimi-send-retry-after-failure');
-    await sleep(500);  // 增加等待时间，让 Kimi 完成内部状态更新
+    // 人类在失败后通常会等更久（1-3秒）
+    await sleep(randomDelay(1000, 2500));
 
     if (el && el.isConnected) {
-      // 重新检查输入框内容
       const current = normalizeText(getContent(el));
       if (current === before) {
         // 内容还在，再次尝试 Enter
         el.focus();
-        await sleep(100);
+        await sleep(randomDelay(150, 400));
         pressEnterOn(el);
-        await sleep(400);
+        await sleep(randomDelay(600, 1000));
         const after = normalizeText(getContent(el));
         sent = !before || after !== before;
       } else {
