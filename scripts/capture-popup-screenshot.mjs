@@ -23,16 +23,21 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const root = join(__dirname, "..");
 const distDir = join(root, "app", "dist-extension");
 
+// 支持多语言截图输出
+const locale = process.argv[2] || "zh-CN";
+const isZh = locale.startsWith("zh");
+const suffix = isZh ? "zh" : "en";
+
 const outputTargets = {
   light: [
-    join(root, "assets", "screenshot.png"),
-    join(root, "assets", "screenshot-light.png"),
-    join(root, "app", "public", "screenshot.png"),
-    join(root, "app", "public", "screenshot-light.png"),
+    join(root, "assets", `screenshot-${suffix}.png`),
+    join(root, "assets", `screenshot-${suffix}-light.png`),
+    join(root, "app", "public", `screenshot-${suffix}.png`),
+    join(root, "app", "public", `screenshot-${suffix}-light.png`),
   ],
   dark: [
-    join(root, "assets", "screenshot-dark.png"),
-    join(root, "app", "public", "screenshot-dark.png"),
+    join(root, "assets", `screenshot-${suffix}-dark.png`),
+    join(root, "app", "public", `screenshot-${suffix}-dark.png`),
   ],
 };
 
@@ -109,7 +114,7 @@ async function captureVariant(browser, baseUrl, colorScheme) {
     viewport: { width: 380, height: 520 },
     deviceScaleFactor: 3,
     colorScheme,
-    locale: "zh-CN",
+    locale,
   });
   const page = await context.newPage();
 
