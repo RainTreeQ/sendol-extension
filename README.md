@@ -62,29 +62,50 @@
 
 ---
 
-## 🛠 安装
+## 🛠 安装（3 步完成）
 
-本插件暂未上架 Chrome 网上应用店，请通过**开发者模式**手动加载：
+本插件暂未上架 Chrome 网上应用店，请通过**开发者模式**手动安装：
 
-1. **获取代码**
-   - 点击 **Code** → **Download ZIP**，解压。
-   - 或 Git 克隆：`git clone https://github.com/RainTreeQ/sendol-extension.git`
-2. **打开扩展页面**
-   - Chrome: `chrome://extensions/`
-   - Edge: `edge://extensions/`
-3. 开启右上角 **开发者模式**。
-4. 点击 **加载已解压的扩展程序**。
-5. 选择**项目根目录**（包含 `manifest.json` 的文件夹）。
-6. 弹窗入口为 `app/dist-extension/popup.html`（仓库已预构建）；若本地缺失，请在项目根执行一次 `npm run build:extension`。
+### 方式一：下载 ZIP（推荐，无需技术背景）
+
+1. **下载并解压**
+   - 点击本页面绿色的 **<> Code** 按钮 → **Download ZIP**
+   - 下载完成后，右键 ZIP 文件 → **解压到当前文件夹**
+   - 你会得到一个文件夹（名字可能是 `sendol`、`sendol-main` 等，都可以）
+
+2. **打开浏览器扩展管理**
+   - Chrome：地址栏输入 `chrome://extensions/` 回车
+   - Edge：地址栏输入 `edge://extensions/` 回车
+
+3. **加载扩展**
+   - 开启右上角的 **「开发者模式」** 开关
+   - 点击出现的 **「加载已解压的扩展程序」** 按钮
+   - 选择刚才解压的文件夹（里面有 `manifest.json` 文件的那个）
+   - 看到 Sendol 图标出现即表示安装成功！
+
+### 方式二：Git 克隆（适合开发者）
+
+```bash
+git clone https://github.com/RainTreeQ/sendol-extension.git
+cd sendol-extension
+```
+
+然后按上述步骤 2-3 加载扩展。
+
+> 💡 **提示**：下载后无需安装其他软件，直接按上述步骤加载即可使用。
 
 ## 🎯 使用说明
 
-1. 在浏览器中打开需要使用的 AI 平台页面（如 ChatGPT、Claude、Gemini）。
-2. 点击浏览器右上角的 Sendol 图标。
-3. 插件会自动扫描并列出当前支持的 AI 窗口。
-4. 在输入框内输入内容。
-5. （可选）勾选「自动发送」「新对话」。
-6. 按 **Ctrl+Enter** 或点击发送，完成广播。
+1. **打开 AI 网站** - 在浏览器中打开需要使用的 AI 平台（如 ChatGPT、Claude、Gemini），建议每个平台开一个标签页
+2. **打开 Sendol** - 点击浏览器右上角的 Sendol 图标（拼图图标里找）
+3. **选择平台** - 插件会自动扫描并列出检测到的 AI 窗口，勾选你想发送到的平台
+4. **输入消息** - 在输入框内输入你想问的内容
+5. **设置选项**（可选）
+   - 「自动发送」：勾选后消息会自动发送，无需手动点击各平台的提交按钮
+   - 「新对话」：勾选后会先在各平台开启新对话再发送
+6. **发送** - 按 **Ctrl+Enter**（Mac 按 **Cmd+Enter**）或点击发送按钮，消息会同时发送到所有选中的 AI 平台
+
+> 📌 **Pin 住图标**：建议右键 Sendol 图标 → 「固定」，方便随时使用
 
 ---
 
@@ -226,29 +247,51 @@ npm run build:extension
 
 ---
 
-## 🛠 Installation
+## 🛠 Installation (3 Steps)
 
-This extension is not on the Chrome Web Store yet. Load it manually in **Developer mode**:
+This extension is not on the Chrome Web Store yet. Install it manually in **Developer mode**:
 
-1. **Get the code**
-   - Click **Code** → **Download ZIP**, then unzip.
-   - Or Git clone: `git clone https://github.com/RainTreeQ/sendol-extension.git`
-2. **Open extensions**
-   - Chrome: `chrome://extensions/`
-   - Edge: `edge://extensions/`
-3. Turn on **Developer mode** (toggle in top-right corner).
-4. Click **Load unpacked**.
-5. Select the **project root folder** (the one containing `manifest.json`).
-6. Popup entry is `app/dist-extension/popup.html` (prebuilt in repo). If missing locally, run `npm run build:extension` in project root once.
+### Option 1: Download ZIP (Recommended, No Technical Skills Required)
+
+1. **Download & Extract**
+   - Click the green **<> Code** button on this page → **Download ZIP**
+   - After downloading, right-click the ZIP file → **Extract All** (Windows) or double-click to extract (Mac)
+   - You'll get a folder named `sendol` (it may appear as `sendol-main` or `sendol-extension-main` depending on your browser)
+
+2. **Open Browser Extensions**
+   - Chrome users: Type `chrome://extensions/` in address bar and press Enter
+   - Edge users: Type `edge://extensions/` in address bar and press Enter
+   - Or click Menu → More Tools → Extensions
+
+3. **Load Extension**
+   - Turn on the **"Developer mode"** switch in the top-right corner
+   - Click **"Load unpacked"** that appears in the top-left
+   - Select the `sendol` folder you just extracted (the one containing `manifest.json`)
+   - Done! You'll see the Sendol icon appear in your extensions list
+
+### Option 2: Git Clone (For Developers)
+
+```bash
+git clone https://github.com/RainTreeQ/sendol-extension.git
+cd sendol-extension
+```
+
+Then follow steps 2-3 above to load the extension.
+
+> 💡 **Tip**: This project is pre-built. No need to run any commands after downloading — just load and use!
 
 ## 🎯 Usage
 
-1. Open the AI sites you need (e.g. ChatGPT, Claude, Gemini) in separate tabs.
-2. Click the **Sendol** icon in the toolbar.
-3. The extension scans and lists all detected AI tabs.
-4. Type your message in the input box.
-5. (Optional) Enable **Auto Send** and/or **New Chat**.
-6. Press **Ctrl+Enter** (or Cmd+Enter on Mac) or click Send to broadcast.
+1. **Open AI Sites** - Open the AI platforms you want to use (e.g., ChatGPT, Claude, Gemini) in separate browser tabs. One tab per platform is recommended.
+2. **Open Sendol** - Click the Sendol icon in your browser toolbar (look for it in the puzzle piece icon menu if you don't see it)
+3. **Select Platforms** - The extension automatically scans and lists detected AI windows. Check the platforms you want to send to
+4. **Type Message** - Enter your question or prompt in the input box
+5. **Configure Options** (Optional)
+   - **Auto Send**: When enabled, messages are automatically submitted without manually clicking each platform's send button
+   - **New Chat**: When enabled, starts a new conversation on each platform before sending
+6. **Send** - Press **Ctrl+Enter** (or **Cmd+Enter** on Mac) or click the send button to broadcast your message to all selected AI platforms simultaneously
+
+> 📌 **Pro Tip**: Right-click the Sendol icon and select "Pin" to keep it easily accessible in your toolbar
 
 ---
 
