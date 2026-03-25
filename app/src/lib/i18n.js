@@ -1,6 +1,7 @@
 const FALLBACK_MESSAGES = {
   en: {
     popup_title: 'Sendol',
+    open_official_site: 'Open official website',
     refresh: 'Refresh',
     active_sessions: 'Available AI Tabs',
     select_all: 'Select All',
@@ -11,7 +12,9 @@ const FALLBACK_MESSAGES = {
     message_placeholder: 'Type your message to all selected AI... (Enter to send)',
     message_placeholder_shift_enter: 'Enter to send, Shift+Enter for new line',
     auto_send: 'Auto Send',
+    auto_send_tooltip: 'Auto Send — submits on each platform.',
     new_chat: 'New Chat',
+    new_chat_tooltip: 'New Chat — fresh thread when you send.',
     safe_mode: 'Safe Mode',
     send_to_n: 'Send to $1 AI(s)',
     select_tabs_and_enter_message: 'Select AI tabs and enter your message',
@@ -54,6 +57,7 @@ const FALLBACK_MESSAGES = {
   },
   zh_CN: {
     popup_title: 'Sendol',
+    open_official_site: '打开官网',
     refresh: '刷新',
     active_sessions: '可用的 AI 页面',
     select_all: '全选',
@@ -64,7 +68,9 @@ const FALLBACK_MESSAGES = {
     message_placeholder: '输入要发送给各个 AI 的内容… (Enter 发送)',
     message_placeholder_shift_enter: 'Enter 发送，Shift+Enter 换行',
     auto_send: '自动发送',
+    auto_send_tooltip: '自动发送：各平台自动提交。',
     new_chat: '新对话',
+    new_chat_tooltip: '新对话：发送时新开。',
     safe_mode: '安全模式',
     send_to_n: '发送给 $1 个 AI',
     select_tabs_and_enter_message: '请选择目标 AI 页面并输入内容',

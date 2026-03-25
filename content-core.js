@@ -10,7 +10,6 @@
           return this.currentOperation.promise;
         }
         await this.currentOperation.promise.catch(() => {
-          // Lock released by previous operation, continue to acquire
         });
       }
       const timeoutPromise = new Promise((_, reject) => {
@@ -711,7 +710,7 @@
       return verifyContent(el, text);
     }
     async function tryDirectDom(el, text) {
-      el.replaceChildren();
+      el.innerHTML = "";
       const p = document.createElement("p");
       p.textContent = text;
       el.appendChild(p);
@@ -897,7 +896,7 @@
         logger?.debug?.("gemini-insertText-retry-failed", { error: err?.message });
       }
       try {
-        el.replaceChildren();
+        el.innerHTML = "";
         const p = document.createElement("p");
         p.textContent = text;
         el.appendChild(p);
@@ -1009,28 +1008,52 @@
       if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue2(el, text);
       return setQianwenInput(el, text, options);
     };
+    const randomDelay = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     const kimiInject2 = async (el, text, options) => {
       if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") return setReactValue2(el, text);
       const { logger } = options || {};
+      const tryKimiHumanLikeInput = async () => {
+        el.focus();
+        await sleep2(randomDelay(80, 200));
+        document.execCommand("selectAll", false, null);
+        await sleep2(randomDelay(30, 80));
+        document.execCommand("delete", false, null);
+        await sleep2(randomDelay(50, 120));
+        const chunkSize = text.length > 50 ? randomDelay(3, 8) : 1;
+        for (let i = 0; i < text.length; i += chunkSize) {
+          const chunk = text.slice(i, i + chunkSize);
+          document.execCommand("insertText", false, chunk);
+          const thinkPause = Math.random() < 0.05 ? randomDelay(200, 500) : 0;
+          await sleep2(randomDelay(30, 120) + thinkPause);
+        }
+        await sleep2(randomDelay(50, 150));
+        el.dispatchEvent(new InputEvent("input", {
+          inputType: "insertText",
+          data: text,
+          bubbles: true
+        }));
+        return verifyContent(el, text, 400, 30);
+      };
       const tryKimiSlateInput = async () => {
         const isSlate = el.hasAttribute("data-slate-editor") || el.closest('[data-slate-editor="true"]');
         if (!isSlate) return false;
         el.focus();
-        await sleep2(20);
+        await sleep2(randomDelay(100, 250));
         const sel = window.getSelection();
         if (sel && el.childNodes.length > 0) {
           try {
             sel.selectAllChildren(el);
+            await sleep2(randomDelay(30, 80));
             el.dispatchEvent(new InputEvent("beforeinput", {
               inputType: "deleteContentBackward",
               bubbles: true,
               cancelable: true
             }));
-            await sleep2(10);
+            await sleep2(randomDelay(50, 100));
           } catch (_) {
           }
         }
-        const chunkSize = text.length > 100 ? 20 : 1;
+        const chunkSize = text.length > 100 ? randomDelay(8, 15) : randomDelay(2, 5);
         for (let i = 0; i < text.length; i += chunkSize) {
           const chunk = text.slice(i, i + chunkSize);
           el.dispatchEvent(new InputEvent("beforeinput", {
@@ -1044,64 +1067,49 @@
             data: chunk,
             bubbles: true
           }));
-          if (i % 100 === 0) await sleep2(2);
+          await sleep2(randomDelay(40, 180));
         }
+        await sleep2(randomDelay(80, 200));
         el.dispatchEvent(new InputEvent("input", {
           inputType: "insertText",
           data: text,
           bubbles: true
         }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
-        return verifyContent(el, text, 350, 25);
-      };
-      const tryKimiPaste = async () => {
-        el.focus();
-        await sleep2(20);
-        el.dispatchEvent(new InputEvent("beforeinput", {
-          inputType: "deleteContentBackward",
-          bubbles: true,
-          cancelable: true
-        }));
-        document.execCommand("selectAll", false, null);
-        document.execCommand("delete", false, null);
-        const dt = new DataTransfer();
-        dt.setData("text/plain", text);
-        dt.setData("text/html", `<p>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`);
-        el.dispatchEvent(new ClipboardEvent("paste", {
-          clipboardData: dt,
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        }));
-        await sleep2(30);
-        el.dispatchEvent(new InputEvent("input", {
-          inputType: "insertText",
-          data: text,
-          bubbles: true
-        }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        return verifyContent(el, text, 350, 25);
+        return verifyContent(el, text, 400, 30);
       };
       const tryKimiInsertText = async () => {
         el.focus();
-        await sleep2(10);
+        await sleep2(randomDelay(80, 180));
         document.execCommand("selectAll", false, null);
+        await sleep2(randomDelay(40, 100));
         document.execCommand("delete", false, null);
+        await sleep2(randomDelay(60, 150));
         document.execCommand("insertText", false, text);
+        await sleep2(randomDelay(80, 200));
         el.dispatchEvent(new InputEvent("input", {
           inputType: "insertText",
           data: text,
           bubbles: true
         }));
+        return verifyContent(el, text, 350, 30);
+      };
+      const tryKimiDirectDom = async () => {
+        el.focus();
+        await sleep2(randomDelay(100, 250));
+        el.innerHTML = "";
+        const p = document.createElement("p");
+        p.textContent = text;
+        el.appendChild(p);
+        await sleep2(randomDelay(80, 200));
+        el.dispatchEvent(new InputEvent("input", { bubbles: true }));
         return verifyContent(el, text, 300, 25);
       };
       return runStrategies(el, [
+        { name: "kimi-human-like", fallbackUsed: false, run: tryKimiHumanLikeInput },
         { name: "kimi-slate-input", fallbackUsed: false, run: tryKimiSlateInput },
-        { name: "kimi-paste", fallbackUsed: false, run: tryKimiPaste },
         { name: "kimi-insertText", fallbackUsed: false, run: tryKimiInsertText },
-        { name: "kimi-clipboard", fallbackUsed: true, run: () => tryClipboardPaste(el, text) },
-        { name: "kimi-datatransfer", fallbackUsed: true, run: () => tryDataTransferPaste(el, text) },
-        { name: "kimi-direct-dom", fallbackUsed: true, run: () => tryDirectDom(el, text) }
+        { name: "kimi-direct-dom", fallbackUsed: true, run: tryKimiDirectDom }
       ], logger);
     };
     const yuanbaoInject2 = async (el, text, options) => {

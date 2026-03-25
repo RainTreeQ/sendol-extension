@@ -30,7 +30,7 @@ echo "✅ [pre-commit] Security checks passed."
 echo ""
 
 echo "[pre-commit] Building extension bundle..."
-npm run build
+npm run build:extension --prefix app
 
 echo "[pre-commit] Capturing popup screenshot..."
 npm run capture:screenshot

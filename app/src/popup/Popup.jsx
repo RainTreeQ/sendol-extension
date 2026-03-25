@@ -1,8 +1,7 @@
 /* global chrome */
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, cloneElement, isValidElement } from 'react'
 import { RefreshCw, ArrowUp, Check, Zap, MessageSquarePlus, RotateCcw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { t } from '@/lib/i18n'
-import { Onboarding } from '@/components/Onboarding'
 import {
   clearDraftFromStorage,
   getPopupBootstrapState,
@@ -11,6 +10,10 @@ import {
   setPopupSettingsPatch,
   writeDraftToLocalMirror,
 } from '@/lib/extension-storage'
+import { cn } from '@/lib/utils'
+
+/** Landing / marketing site opened from the popup logo */
+const SENDOL_OFFICIAL_URL = 'https://sendol.chat'
 
 /** Logo: 圆形竖着分三份 — 圆 + 两条竖线 */
 function LogoIcon({ className }) {
@@ -89,6 +92,152 @@ function isExtensionContextValid() {
 function isRuntimeContextError(error) {
   const message = String(error?.message || error || '')
   return CONTEXT_ERROR_PATTERNS.some((pattern) => message.includes(pattern))
+}
+
+const POPUP_EDGE_PX = 4
+const TOOLTIP_GAP_PX = 6
+/** Max bubble width so lines stay short; still capped by popup inner width */
+const TOOLTIP_MAX_CONTENT_WIDTH_PX = 220
+
+function clampTooltipMaxWidthPx(rootInnerWidth) {
+  return Math.min(
+    TOOLTIP_MAX_CONTENT_WIDTH_PX,
+    Math.max(0, rootInnerWidth - 2 * POPUP_EDGE_PX),
+  )
+}
+
+const HOVER_BUBBLE_HIDE_MS = 220
+
+/**
+ * Hover bubble for popup chrome: clamps inside #root, fade + slight Y motion, pointer cursor on trigger.
+ * `label` may be a React node for dynamic text (e.g. send button).
+ */
+function PopupHoverBubble({ label, children }) {
+  const anchorRef = useRef(null)
+  const tooltipRef = useRef(null)
+  const hideTimerRef = useRef(null)
+  const [show, setShow] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [pos, setPos] = useState(null)
+
+  useLayoutEffect(() => {
+    if (!show) return
+    const root = document.getElementById('root')
+    const anchor = anchorRef.current
+    const tip = tooltipRef.current
+    if (!root || !anchor || !tip) return
+
+    const rootRect = root.getBoundingClientRect()
+    const anchorRect = anchor.getBoundingClientRect()
+    const maxW = clampTooltipMaxWidthPx(rootRect.width)
+
+    tip.style.maxWidth = `${maxW}px`
+    const tw = tip.offsetWidth
+    const th = tip.offsetHeight
+
+    const centerX = anchorRect.left + anchorRect.width / 2
+    let left = centerX - tw / 2
+    left = Math.min(
+      Math.max(rootRect.left + POPUP_EDGE_PX, left),
+      rootRect.right - tw - POPUP_EDGE_PX,
+    )
+
+    let top = anchorRect.top - TOOLTIP_GAP_PX - th
+    if (top < rootRect.top + POPUP_EDGE_PX) {
+      top = anchorRect.bottom + TOOLTIP_GAP_PX
+    }
+    if (top + th > rootRect.bottom - POPUP_EDGE_PX) {
+      top = rootRect.bottom - POPUP_EDGE_PX - th
+    }
+    if (top < rootRect.top + POPUP_EDGE_PX) {
+      top = rootRect.top + POPUP_EDGE_PX
+    }
+
+    setPos({ left, top, maxWidth: maxW })
+  }, [show, label])
+
+  useEffect(
+    () => () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    },
+    [],
+  )
+
+  const handleEnter = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+      hideTimerRef.current = null
+    }
+    setLeaving(false)
+    setShow(true)
+  }
+
+  const handleLeave = () => {
+    setLeaving(true)
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null
+      setShow(false)
+      setLeaving(false)
+      setPos(null)
+    }, HOVER_BUBBLE_HIDE_MS)
+  }
+
+  if (!isValidElement(children)) {
+    return children
+  }
+
+  const prevRef = children.props?.ref ?? children.ref
+  const disabled = Boolean(children.props.disabled)
+  const trigger = cloneElement(children, {
+    ref: (node) => {
+      anchorRef.current = node
+      if (typeof prevRef === 'function') prevRef(node)
+      // Ref object from child must be updated in place (standard React merge pattern)
+      else if (prevRef != null) {
+        // eslint-disable-next-line react-hooks/immutability -- merge forwarded ref
+        prevRef.current = node
+      }
+    },
+    className: cn(children.props.className, !disabled && 'cursor-pointer'),
+    onMouseEnter: (e) => {
+      children.props.onMouseEnter?.(e)
+      handleEnter()
+    },
+    onMouseLeave: (e) => {
+      children.props.onMouseLeave?.(e)
+      handleLeave()
+    },
+  })
+
+  const revealed = Boolean(pos) && !leaving
+
+  return (
+    <span className="relative inline-flex">
+      {trigger}
+      {show && (
+        <span
+          ref={tooltipRef}
+          role="tooltip"
+          className={cn(
+            'pointer-events-none fixed z-[60] box-border rounded-lg border border-border/50 bg-foreground px-2.5 py-1.5 text-center text-[10px] font-medium leading-snug text-background shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--foreground)_35%,transparent)] whitespace-normal wrap-anywhere',
+            'transition-[opacity,transform] duration-200 ease-out',
+            revealed ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0',
+          )}
+          style={{
+            left: pos?.left ?? 0,
+            top: pos?.top ?? 0,
+            maxWidth:
+              pos?.maxWidth ??
+              clampTooltipMaxWidthPx(
+                typeof document !== 'undefined' ? document.getElementById('root')?.clientWidth ?? 400 : 400,
+              ),
+          }}
+        >
+          {label}
+        </span>
+      )}
+    </span>
+  )
 }
 
 function closePopupSafely() {
@@ -866,21 +1015,35 @@ export default function Popup() {
     <div className="relative flex w-full h-full flex-col overflow-hidden bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-gray-100 font-sans">
       <div className="absolute inset-x-0 top-0 z-30">
         <header className="flex h-[60px] items-center justify-between border-b border-gray-200 bg-gray-50 px-5 dark:border-zinc-700/80 dark:bg-zinc-950">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] dark:bg-zinc-300 dark:text-zinc-900 [--logo-divider:#000] dark:[--logo-divider:theme(colors.zinc.300)]">
-              <LogoIcon className="h-4 w-4" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">{t('popup_title')}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            title={t('refresh')}
-            aria-label={t('refresh')}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshSpinning ? 'animate-spin' : ''}`} />
-          </button>
+          <PopupHoverBubble label={t('open_official_site')}>
+            <button
+              type="button"
+              aria-label={t('open_official_site')}
+              onClick={() => {
+                try {
+                  void chrome.tabs.create({ url: SENDOL_OFFICIAL_URL })
+                } catch (err) {
+                  console.error(err)
+                }
+              }}
+              className="flex cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-gray-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] dark:bg-zinc-300 dark:text-zinc-900 [--logo-divider:#000] dark:[--logo-divider:theme(colors.zinc.300)]">
+                <LogoIcon className="h-4 w-4" />
+              </div>
+              <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">{t('popup_title')}</span>
+            </button>
+          </PopupHoverBubble>
+          <PopupHoverBubble label={t('refresh')}>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              aria-label={t('refresh')}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshSpinning ? 'animate-spin' : ''}`} />
+            </button>
+          </PopupHoverBubble>
         </header>
 
         <div className="flex h-[44px] items-center justify-between bg-gray-50 px-5 dark:bg-zinc-950">
@@ -1047,72 +1210,81 @@ export default function Popup() {
             />
             <div className="flex items-center justify-between px-3 pb-3">
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = !autoSend
-                    setAutoSend(v)
-                    void setPopupSettingsPatch({ autoSend: v })
-                  }}
-                  title={t('auto_send')}
-                  className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
-                    autoSend
-                      ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
-                      : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
-                  }`}
-                >
-                  <Zap className="h-4 w-4" />
-                  {autoSend && <span className="text-[11px] font-semibold">{t('auto_send')}</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = !newChat
-                    setNewChat(v)
-                    void setPopupSettingsPatch({ newChat: v })
-                  }}
-                  title={t('new_chat')}
-                  className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
-                    newChat
-                      ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
-                      : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
-                  }`}
-                >
-                  <MessageSquarePlus className="h-4 w-4" />
-                  {newChat && <span className="text-[11px] font-semibold">{t('new_chat')}</span>}
-                </button>
+                <PopupHoverBubble label={t('auto_send_tooltip')}>
+                  <button
+                    type="button"
+                    aria-label={t('auto_send')}
+                    onClick={() => {
+                      const v = !autoSend
+                      setAutoSend(v)
+                      void setPopupSettingsPatch({ autoSend: v })
+                    }}
+                    className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                      autoSend
+                        ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
+                        : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <Zap className="h-4 w-4" />
+                    {autoSend && <span className="text-[11px] font-semibold">{t('auto_send')}</span>}
+                  </button>
+                </PopupHoverBubble>
+                <PopupHoverBubble label={t('new_chat_tooltip')}>
+                  <button
+                    type="button"
+                    aria-label={t('new_chat')}
+                    onClick={() => {
+                      const v = !newChat
+                      setNewChat(v)
+                      void setPopupSettingsPatch({ newChat: v })
+                    }}
+                    className={`flex items-center justify-center gap-1.5 rounded-full transition-all duration-200 ${
+                      newChat
+                        ? 'bg-zinc-200/80 text-zinc-900 px-2.5 py-1.5 dark:bg-zinc-700/80 dark:text-zinc-100'
+                        : 'text-gray-500 hover:bg-gray-200/60 hover:text-gray-900 p-1.5 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-100'
+                    }`}
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                    {newChat && <span className="text-[11px] font-semibold">{t('new_chat')}</span>}
+                  </button>
+                </PopupHoverBubble>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={sendDisabled}
-                  onClick={handleSend}
-                  title={
+                <PopupHoverBubble
+                  label={
                     hasSelection && hasText
                       ? t('send_to_n', [String(selectedTabIds.length)])
                       : t('select_tabs_and_enter_message')
                   }
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-                    !sendDisabled
-                      ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
-                  }`}
                 >
-                  {sending ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
-                  ) : (
-                    <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    disabled={sendDisabled}
+                    onClick={handleSend}
+                    aria-label={
+                      hasSelection && hasText
+                        ? t('send_to_n', [String(selectedTabIds.length)])
+                        : t('select_tabs_and_enter_message')
+                    }
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                      !sendDisabled
+                        ? 'bg-black text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:scale-105 hover:shadow-[0_4px_14px_rgba(0,0,0,0.35)] active:scale-95 dark:bg-white dark:text-black dark:shadow-[0_2px_8px_rgba(255,255,255,0.15)]'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-500'
+                    }`}
+                  >
+                    {sending ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                    ) : (
+                      <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                    )}
+                  </button>
+                </PopupHoverBubble>
               </div>
             </div>
           </div>
         </div>
 
       </div>
-      
-      {/* Onboarding modal */}
-      <Onboarding />
     </div>
   )
 }

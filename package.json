@@ -10,7 +10,9 @@
     "build": "vite build",
     "build:design-system": "vite build --config vite.design-system.config.js",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:popup-ui": "node scripts/test-popup-ui.mjs",
+    "capture:screenshot": "node scripts/capture-popup-screenshot.mjs"
   },
   "dependencies": {
     "@lobehub/icons": "^5.0.1",
@@ -36,6 +38,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "playwright": "^1.49.1",
     "vite": "^7.3.1"
   }
 }
